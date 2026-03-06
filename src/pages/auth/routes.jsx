@@ -1,6 +1,7 @@
 import SignUp from "./SignUp";
 import Login from "./Login";
 import Auth from "./Auth";
+import { AuthGuard } from "../../routes/auth-guard";
 
 
 const AuthRoutes = {
@@ -9,11 +10,11 @@ const AuthRoutes = {
   children: [
     {
       index: true,
-      element: <Login />,
+      element: <AuthGuard><Login /></AuthGuard>,
     },
     {
       path: "signup",
-      element: <SignUp />,
+      element:<AuthGuard><SignUp /></AuthGuard>,
     },
   ],
 };
