@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { FormProvider as RHFForm } from "react-hook-form";
-import { Field } from "../../Components/TextFields";
+import { Field } from "../../Components/Fields";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SignUpSchema } from "./authValidationSchemas";
 import { useNavigate } from "react-router-dom";

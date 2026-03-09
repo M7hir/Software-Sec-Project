@@ -1,22 +1,14 @@
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  Grid,
-  Typography,
-  Link,
-  Snackbar,
-  Alert,
-} from "@mui/material";
+import { Button, Grid, Typography, Link, Snackbar, Alert } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { FormProvider as RHFForm } from "react-hook-form";
-import { Field } from "../../Components/TextFields";
+import { Field } from "../../Components/Fields";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "./authValidationSchemas";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import AuthBodyWrapper from "./AuthBodyWrapper";
+import { useDispatch } from "react-redux";
+import { login } from "./authSlice";
 
 const loginDefaultValues = {
   email: "",
@@ -28,7 +20,7 @@ function Login() {
     defaultValues: loginDefaultValues,
     resolver: zodResolver(LoginSchema),
   });
-
+  const dispatch = useDispatch();
   const router = useNavigate();
 
   const [openSuccess, setOpenSuccess] = useState(false);
@@ -48,13 +40,25 @@ function Login() {
       (user) => user.email === data.email && user.password === data.password,
     );
     console.log("Valid user:", validUser);
-    const id = JSON.parse(localStorage.getItem("IDs"))?.find(
+    const validId = JSON.parse(localStorage.getItem("IDs"))?.find(
       (id) => id === validUser?.id,
     );
-    if (id) {
+    if (validId) {
       localStorage.setItem("AuthToken", "Authenticated");
+      dispatch(
+        login({
+          firstName: validUser.firstName,
+          lastName: validUser.lastName,
+          email: validUser.email,
+          id: validUser.id,
+          isLoggedIn: true,
+        }),
+      );
+
       setOpenSuccess(true);
-      router("/");
+      setTimeout(() => {
+        router("/");
+      }, 2000);
       return;
     } else {
       setOpenError(true);
