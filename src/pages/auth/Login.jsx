@@ -15,6 +15,32 @@ const loginDefaultValues = {
   password: "",
 };
 
+const DEFAULT_ADMIN = {
+  id: "admin-user-id",
+  firstName: "System",
+  lastName: "Admin",
+  email: "admin@heremes.com",
+  password: "Admin@123",
+  role: "admin",
+};
+
+const ensureAdminUser = () => {
+  const existingUsers = JSON.parse(localStorage.getItem("userData")) || [];
+  const hasAdmin = existingUsers.some((user) => user.role === "admin");
+
+  if (!hasAdmin) {
+    localStorage.setItem(
+      "userData",
+      JSON.stringify([...existingUsers, DEFAULT_ADMIN]),
+    );
+
+    const ids = JSON.parse(localStorage.getItem("IDs")) || [];
+    if (!ids.includes(DEFAULT_ADMIN.id)) {
+      localStorage.setItem("IDs", JSON.stringify([...ids, DEFAULT_ADMIN.id]));
+    }
+  }
+};
+
 function Login() {
   const methods = useForm({
     defaultValues: loginDefaultValues,
@@ -35,7 +61,9 @@ function Login() {
   };
   const onSubmit = (data) => {
     console.log("Submitted data:", data);
-    const storedUserData = JSON.parse(localStorage.getItem("userData"));
+    ensureAdminUser();
+
+    const storedUserData = JSON.parse(localStorage.getItem("userData")) || [];
     const validUser = storedUserData.find(
       (user) => user.email === data.email && user.password === data.password,
     );
@@ -51,6 +79,7 @@ function Login() {
           lastName: validUser.lastName,
           email: validUser.email,
           id: validUser.id,
+          role: validUser.role ?? "user",
           isLoggedIn: true,
         }),
       );

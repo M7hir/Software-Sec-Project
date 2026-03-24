@@ -22,11 +22,29 @@ dayjs.extend(isSameOrBefore);
 
 const CreateTask = ({ open, setOpen }) => {
   const [dateError, setDateError] = useState(null);
+  const user = useAuthContext();
+  const isAdmin = user.role === "admin";
+  const users = JSON.parse(localStorage.getItem("userData")) || [];
+
+  const userLabelMap = {};
+  users.forEach((item) => {
+    userLabelMap[item.id] = `${item.firstName} ${item.lastName} (${item.email})`;
+  });
+
+  if (user.id && !userLabelMap[user.id]) {
+    userLabelMap[user.id] = `${user.firstName} ${user.lastName} (${user.email})`;
+  }
+
+  const userOptions = Object.keys(userLabelMap);
+  const assigneeOptions = isAdmin ? userOptions : [user.id];
+  const assignedToOptions = isAdmin ? userOptions : [user.id];
   
   const methods = useForm({
     defaultValues: {
       taskName: "",
       description: "",
+      assignee: user.id,
+      assignedTo: user.id,
       priority: "Medium",
       status: "To-Do",
       startDateTime: dayjs(),
@@ -38,16 +56,26 @@ const CreateTask = ({ open, setOpen }) => {
 
   useEffect(() => {
     if (open) {
-      reset();
+      reset({
+        taskName: "",
+        description: "",
+        assignee: user.id,
+        assignedTo: user.id,
+        priority: "Medium",
+        status: "To-Do",
+        startDateTime: dayjs(),
+        endDateTime: dayjs().add(1, "hour"),
+      });
     }
-  }, [open, reset]);
+  }, [open, reset, user.id]);
 
   const dispatch = useDispatch();
-  const user = useAuthContext();
+
   const handleClose = (_, reason) => {
     if (reason === "backdropClick") {
       return;
     }
+    setDateError(null);
     setOpen(false);
   };
 
@@ -59,14 +87,48 @@ const CreateTask = ({ open, setOpen }) => {
     }
 
     console.log("Submitted data:", data);
+
+    const selectedAssignee = users.find((item) => item.id === data.assignee) || (data.assignee === user.id
+      ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+        }
+      : null);
+
+    const selectedAssignedTo = users.find((item) => item.id === data.assignedTo) || (data.assignedTo === user.id
+      ? {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+        }
+      : null);
+
+    if (!selectedAssignee || !selectedAssignedTo) {
+      setDateError("Please select valid users for Assignee and Assigned To");
+      return;
+    }
+
     const taskData = {
       ...data,
       id: uuidv4(),
+      assigneeId: selectedAssignee.id,
+      assigneeName: `${selectedAssignee.firstName} ${selectedAssignee.lastName}`,
+      assignedToId: selectedAssignedTo.id,
+      assignedToName: `${selectedAssignedTo.firstName} ${selectedAssignedTo.lastName}`,
+      createdByUserId: user.id,
       startDateTime: data.startDateTime.toISOString(),
       endDateTime: data.endDateTime.toISOString(),
     };
 
-    dispatch(addTask({ userId: user.id, task: taskData }));
+    dispatch(addTask({ userId: selectedAssignee.id, task: { ...taskData } }));
+
+    if (selectedAssignedTo.id !== selectedAssignee.id) {
+      dispatch(addTask({ userId: selectedAssignedTo.id, task: { ...taskData } }));
+    }
+
     setDateError(null);
     handleClose();
   };
@@ -124,6 +186,28 @@ const CreateTask = ({ open, setOpen }) => {
                     message: "Description cannot exceed 400 characters",
                   },
                 }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Field.AutoComplete
+                name="assignee"
+                disablePortal
+                options={assigneeOptions}
+                sx={{ width: "100%" }}
+                label="Assignee"
+                disableClearable
+                getOptionLabel={(option) => userLabelMap[option] || ""}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Field.AutoComplete
+                name="assignedTo"
+                disablePortal
+                options={assignedToOptions}
+                sx={{ width: "100%" }}
+                label="Assigned To"
+                disableClearable
+                getOptionLabel={(option) => userLabelMap[option] || ""}
               />
             </Grid>
             <Grid size={{ xs: 12 }}>

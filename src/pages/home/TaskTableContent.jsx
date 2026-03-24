@@ -43,7 +43,7 @@ function getComparator(order, orderBy) {
     : (a, b) => -descendingComparator(a, b, orderBy);
 }
 
-const headCells = [
+const getHeadCells = (showAssignedTo) => [
   {
     id: "taskName",
     align: "left",
@@ -87,6 +87,24 @@ const headCells = [
     width: "140px",
   },
   {
+    id: "assigneeName",
+    disablePadding: false,
+    align: "left",
+    label: "Assignee",
+    width: "180px",
+  },
+  ...(showAssignedTo
+    ? [
+        {
+          id: "assignedToName",
+          disablePadding: false,
+          align: "left",
+          label: "Assigned To",
+          width: "180px",
+        },
+      ]
+    : []),
+  {
     id: "actions",
     disablePadding: false,
     align: "center",
@@ -96,7 +114,8 @@ const headCells = [
 ];
 
 function EnhancedTableHead(props) {
-  const { order, orderBy, onRequestSort } = props;
+  const { order, orderBy, onRequestSort, showAssignedTo } = props;
+  const headCells = getHeadCells(showAssignedTo);
   const createSortHandler = (property) => (event) => {
     onRequestSort(event, property);
   };
@@ -137,7 +156,7 @@ EnhancedTableHead.propTypes = {
   rowCount: PropTypes.number.isRequired,
 };
 
-export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEdit }) {
+export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEdit, canDeleteTask, canEditTask, currentUserId, currentUserName, showAssignedTo }) {
   const [order, setOrder] = React.useState("asc");
   const [orderBy, setOrderBy] = React.useState("taskName");
   const [page, setPage] = React.useState(0);
@@ -160,6 +179,11 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
   };
 
   const handleEdit = () => {
+    if (selectedTask && !canEditTask(selectedTask)) {
+      handleMenuClose();
+      return;
+    }
+
     if (selectedTask) {
       onEdit(selectedTask);
     }
@@ -167,6 +191,11 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
   };
 
   const handleDeleteClick = () => {
+    if (selectedTask && !canDeleteTask(selectedTask)) {
+      handleMenuClose();
+      return;
+    }
+
     if (selectedTask) {
       setTaskToDelete(selectedTask);
       setOpenDeleteDialog(true);
@@ -232,11 +261,17 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
               order={order}
               orderBy={orderBy}
               onRequestSort={handleRequestSort}
+              showAssignedTo={showAssignedTo}
               rowCount={tasks.length}
             />
             <TableBody>
               {visibleRows.map((row, index) => {
                 const labelId = `enhanced-table-checkbox-${index}`;
+                const assigneeName = row.assigneeName || currentUserName || "Unknown";
+                const assignedToName = row.assignedToName || currentUserName || "Unknown";
+                const isSelfAssigned =
+                  (row.assigneeId ? row.assigneeId === currentUserId : true) &&
+                  (row.createdByUserId ? row.createdByUserId === currentUserId : true);
 
                 return (
                   <TableRow
@@ -283,6 +318,7 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                           value={row.status || "To-Do"}
                           onChange={(e) => onStatusChange(row.id, e.target.value)}
                           size="small"
+                          disabled={!canEditTask(row)}
                         >
                           <MenuItem value="To-Do">To-Do</MenuItem>
                           <MenuItem value="In-Progress">In-Progress</MenuItem>
@@ -296,6 +332,15 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                     <TableCell align="center" sx={{ width: "140px" }}>
                       {dayjs(row.endDateTime).format("MMM-DD-YYYY")}
                     </TableCell>
+                    <TableCell align="left" sx={{ width: "180px" }}>
+                      {assigneeName}
+                      {isSelfAssigned ? " (self)" : ""}
+                    </TableCell>
+                    {showAssignedTo && (
+                      <TableCell align="left" sx={{ width: "180px" }}>
+                        {assignedToName}
+                      </TableCell>
+                    )}
                     <TableCell align="center" sx={{ width: "80px" }}>
                       <IconButton
                         size="small"
@@ -313,7 +358,7 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                     height: 53 * emptyRows,
                   }}
                 >
-                  <TableCell colSpan={7} />
+                  <TableCell colSpan={showAssignedTo ? 9 : 8} />
                 </TableRow>
               )}
             </TableBody>
@@ -356,8 +401,15 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handleEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteClick}>Delete</MenuItem>
+        <MenuItem onClick={handleEdit} disabled={selectedTask ? !canEditTask(selectedTask) : true}>
+          Edit
+        </MenuItem>
+        <MenuItem
+          onClick={handleDeleteClick}
+          disabled={selectedTask ? !canDeleteTask(selectedTask) : true}
+        >
+          Delete
+        </MenuItem>
       </Menu>
 
       <Dialog open={descriptionDialog} onClose={() => setDescriptionDialog(false)} maxWidth="sm" fullWidth>
@@ -380,4 +432,13 @@ TaskTableContent.propTypes = {
   onDelete: PropTypes.func.isRequired,
   onStatusChange: PropTypes.func.isRequired,
   onEdit: PropTypes.func.isRequired,
+  canDeleteTask: PropTypes.func.isRequired,
+  canEditTask: PropTypes.func.isRequired,
+  currentUserId: PropTypes.string,
+  currentUserName: PropTypes.string,
+  showAssignedTo: PropTypes.bool,
+};
+
+TaskTableContent.defaultProps = {
+  showAssignedTo: false,
 };

@@ -34,9 +34,22 @@ function SignUp() {
   const onSubmit = (data) => {
     const id = uuidv4();
     const existingData = JSON.parse(localStorage.getItem("userData")) || [];
+    const emailExists = existingData.some(
+      (user) => user.email?.toLowerCase() === data.email?.toLowerCase(),
+    );
+
+    if (emailExists) {
+      methods.setError("email", {
+        type: "manual",
+        message: "Email already exists",
+      });
+      return;
+    }
+
     const newData = {
       ...data,
       id,
+      role: "user",
     };
     console.log("Submitted data:", newData);
     localStorage.setItem(

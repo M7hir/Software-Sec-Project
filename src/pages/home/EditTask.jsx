@@ -19,7 +19,7 @@ import { useAuthContext } from "../../hooks/useAuthContext";
 
 dayjs.extend(isSameOrBefore);
 
-const EditTask = ({ open, setOpen, task }) => {
+const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
   const [dateError, setDateError] = useState(null);
 
   const methods = useForm({
@@ -73,7 +73,12 @@ const EditTask = ({ open, setOpen, task }) => {
       endDateTime: data.endDateTime.toISOString(),
     };
 
-    dispatch(editTask({ userId: user.id, task: taskData }));
+    if (onSubmitTask) {
+      onSubmitTask(taskData);
+    } else {
+      dispatch(editTask({ userId: user.id, task: taskData }));
+    }
+
     setDateError(null);
     handleClose();
   };

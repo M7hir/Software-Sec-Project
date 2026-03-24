@@ -57,17 +57,32 @@ export default function TaskTable() {
   };
 
   const handleDeleteTask = (taskId) => {
+    const task = allTasks.find((item) => item.id === taskId);
+    const canDelete = task?.createdByUserId ? task.createdByUserId === user.id : true;
+
+    if (!canDelete) {
+      return;
+    }
+
     dispatch(removeTask({ userId: user.id, taskId }));
   };
 
+  const canDeleteTask = (task) => (task?.createdByUserId ? task.createdByUserId === user.id : true);
+  const canEditTask = (task) => (task?.createdByUserId ? task.createdByUserId === user.id : true);
+  const currentUserName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+
   const handleStatusChange = (taskId, newStatus) => {
     const task = allTasks.find((t) => t.id === taskId);
-    if (task) {
+    if (task && canEditTask(task)) {
       dispatch(editTask({ userId: user.id, task: { ...task, status: newStatus } }));
     }
   };
 
   const handleEditClick = (task) => {
+    if (!canEditTask(task)) {
+      return;
+    }
+
     setTaskToEdit(task);
     setEditDialogOpen(true);
   };
@@ -109,6 +124,10 @@ export default function TaskTable() {
             onDelete={handleDeleteTask}
             onStatusChange={handleStatusChange}
             onEdit={handleEditClick}
+            canDeleteTask={canDeleteTask}
+            canEditTask={canEditTask}
+            currentUserId={user.id}
+            currentUserName={currentUserName}
           />
         )}
       </TabPanel>
@@ -124,6 +143,10 @@ export default function TaskTable() {
             onDelete={handleDeleteTask}
             onStatusChange={handleStatusChange}
             onEdit={handleEditClick}
+            canDeleteTask={canDeleteTask}
+            canEditTask={canEditTask}
+            currentUserId={user.id}
+            currentUserName={currentUserName}
           />
         )}
       </TabPanel>
@@ -139,6 +162,10 @@ export default function TaskTable() {
             onDelete={handleDeleteTask}
             onStatusChange={handleStatusChange}
             onEdit={handleEditClick}
+            canDeleteTask={canDeleteTask}
+            canEditTask={canEditTask}
+            currentUserId={user.id}
+            currentUserName={currentUserName}
           />
         )}
       </TabPanel>
