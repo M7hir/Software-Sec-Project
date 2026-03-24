@@ -2,12 +2,13 @@ import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Controller, useFormContext } from "react-hook-form";
 
-const InputDateAndTimePicker = ({ name, label, helperText, ...props }) => {
+const InputDateAndTimePicker = ({ name, label, helperText, rules, ...props }) => {
   const methods = useFormContext();
   return (
     <Controller
       name={name}
       control={methods.control}
+      rules={rules}
       render={({ field, fieldState: { error } }) => {
         return (
           <LocalizationProvider dateAdapter={AdapterDayjs}>

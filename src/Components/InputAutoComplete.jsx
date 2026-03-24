@@ -1,12 +1,13 @@
 import { Autocomplete, TextField } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
 
-const InputAutoComplete = ({ name, label, helperText, options, ...props }) => {
+const InputAutoComplete = ({ name, label, helperText, options, rules, ...props }) => {
     const methods = useFormContext();
   return (
     <Controller
       control={methods.control}
       name={name}
+      rules={rules}
       render={({ field, fieldState: { error } }) => {
         return (
               <Autocomplete

@@ -13,42 +13,50 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useForm } from "react-hook-form";
 import { Field } from "../../Components/Fields";
 import { FormProvider as RHFForm } from "react-hook-form";
-import { v4 as uuidv4 } from "uuid";
 import { useDispatch } from "react-redux";
-import { addTask } from "./taskSlice";
+import { editTask } from "./taskSlice";
 import { useAuthContext } from "../../hooks/useAuthContext";
 
 dayjs.extend(isSameOrBefore);
 
-const CreateTask = ({ open, setOpen }) => {
+const EditTask = ({ open, setOpen, task }) => {
   const [dateError, setDateError] = useState(null);
-  
+
   const methods = useForm({
     defaultValues: {
-      taskName: "",
-      description: "",
-      priority: "Medium",
-      status: "To-Do",
-      startDateTime: dayjs(),
-      endDateTime: dayjs().add(1, "hour"),
+      taskName: task?.taskName || "",
+      description: task?.description || "",
+      priority: task?.priority || "Medium",
+      status: task?.status || "To-Do",
+      startDateTime: task?.startDateTime ? dayjs(task.startDateTime) : dayjs(),
+      endDateTime: task?.endDateTime ? dayjs(task.endDateTime) : dayjs().add(1, "hour"),
     },
     mode: "onChange",
   });
   const { reset } = methods;
 
   useEffect(() => {
-    if (open) {
-      reset();
+    if (open && task) {
+      reset({
+        taskName: task.taskName,
+        description: task.description,
+        priority: task.priority,
+        status: task.status,
+        startDateTime: dayjs(task.startDateTime),
+        endDateTime: dayjs(task.endDateTime),
+      });
     }
-  }, [open, reset]);
+  }, [open, task, reset]);
 
   const dispatch = useDispatch();
   const user = useAuthContext();
+
   const handleClose = (_, reason) => {
     if (reason === "backdropClick") {
       return;
     }
     setOpen(false);
+    setDateError(null);
   };
 
   const onSubmit = (data) => {
@@ -58,18 +66,18 @@ const CreateTask = ({ open, setOpen }) => {
       return;
     }
 
-    console.log("Submitted data:", data);
     const taskData = {
+      ...task,
       ...data,
-      id: uuidv4(),
       startDateTime: data.startDateTime.toISOString(),
       endDateTime: data.endDateTime.toISOString(),
     };
 
-    dispatch(addTask({ userId: user.id, task: taskData }));
+    dispatch(editTask({ userId: user.id, task: taskData }));
     setDateError(null);
     handleClose();
   };
+
   return (
     <RHFForm {...methods}>
       <Dialog
@@ -80,7 +88,7 @@ const CreateTask = ({ open, setOpen }) => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Create New Task</DialogTitle>
+        <DialogTitle>Edit Task</DialogTitle>
         <DialogContent sx={{ paddingTop: 2 }}>
           {dateError && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -162,11 +170,11 @@ const CreateTask = ({ open, setOpen }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button type="submit">Create</Button>
+          <Button type="submit">Update</Button>
         </DialogActions>
       </Dialog>
     </RHFForm>
   );
 };
 
-export { CreateTask };
+export { EditTask };

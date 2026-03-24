@@ -2,23 +2,33 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const taskSlice = createSlice({
     name : "tasks",
-    initialState : {
-        tasks:[]
-    },
+    initialState : {},
     reducers: {
         addTask : (state,action) => {
-            state.tasks.push(action.payload);
+            const { userId, task } = action.payload;
+            if (!state[userId]) {
+                state[userId] = { tasks: [] };
+            }
+            state[userId].tasks.push(task);
         },
         editTask : (state,action) => {
-            const taskIndex = state.tasks.findIndex(task => task.id === action.payload.id);
-            state.tasks[taskIndex] = action.payload;
+            const { userId, task } = action.payload;
+            if (state[userId]) {
+                const taskIndex = state[userId].tasks.findIndex(t => t.id === task.id);
+                if (taskIndex !== -1) {
+                    state[userId].tasks[taskIndex] = task;
+                }
+            }
         },
         removeTask: (state,action) => {
-            state.tasks = state.tasks.filter(task => task.id !== action.payload)
+            const { userId, taskId } = action.payload;
+            if (state[userId]) {
+                state[userId].tasks = state[userId].tasks.filter(task => task.id !== taskId);
+            }
         }
     }
 })
 
-export const {addTask,removeTask} = taskSlice.actions;
+export const {addTask, editTask, removeTask} = taskSlice.actions;
 
 export const tasksReducer = taskSlice.reducer;

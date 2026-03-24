@@ -1,362 +1,149 @@
 import * as React from "react";
-import PropTypes from "prop-types";
-import { alpha } from "@mui/material/styles";
-import Box from "@mui/material/Box";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TablePagination from "@mui/material/TablePagination";
-import TableRow from "@mui/material/TableRow";
-import TableSortLabel from "@mui/material/TableSortLabel";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import DeleteIcon from "@mui/icons-material/Delete";
-import FilterListIcon from "@mui/icons-material/FilterList";
-import { visuallyHidden } from "@mui/utils";
 import { useDispatch, useSelector } from "react-redux";
-import dayjs from "dayjs";
-import { removeTask } from "./taskSlice";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { removeTask, editTask } from "./taskSlice";
+import { useAuthContext } from "../../hooks/useAuthContext";
+import Box from "@mui/material/Box";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import { Typography } from "@mui/material";
+import TaskTableContent from "./TaskTableContent";
+import { EditTask } from "./EditTask";
 
-function descendingComparator(a, b, orderBy) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-}
-
-function getComparator(order, orderBy) {
-  return order === "desc"
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
-}
-
-const headCells = [
-  {
-    id: "taskName",
-    align: "left",
-    disablePadding: false,
-    label: "Task Name",
-  },
-  {
-    id: "description",
-    disablePadding: false,
-    align: "right",
-    label: "Description",
-  },
-  {
-    id: "priority",
-    disablePadding: false,
-    align: "right",
-    label: "Priority",
-  },
-  {
-    id: "startDateTime",
-    disablePadding: false,
-    align: "right",
-    label: "Start Date",
-  },
-  {
-    id: "endDateTime",
-    disablePadding: false,
-    align: "right",
-    label: "End Date",
-  },
-  {
-    id: "actions",
-    disablePadding: false,
-    align: "right",
-    label: "Actions",
-  },
-];
-
-function EnhancedTableHead(props) {
-  const { order, orderBy, onRequestSort } = props;
-  const createSortHandler = (property) => (event) => {
-    onRequestSort(event, property);
-  };
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
 
   return (
-    <TableHead>
-      <TableRow>
-        {headCells.map((headCell) => (
-          <TableCell
-            key={headCell.id}
-            align={headCell.align ? headCell.align : "left"}
-            sortDirection={orderBy === headCell.id ? order : false}
-            sx={{ paddingLeft: 2 }}
-          >
-            <TableSortLabel
-              active={orderBy === headCell.id}
-              direction={orderBy === headCell.id ? order : "asc"}
-              onClick={createSortHandler(headCell.id)}
-            >
-              {headCell.label}
-              {orderBy === headCell.id ? (
-                <Box component="span" sx={visuallyHidden}>
-                  {order === "desc" ? "sorted descending" : "sorted ascending"}
-                </Box>
-              ) : null}
-            </TableSortLabel>
-          </TableCell>
-        ))}
-      </TableRow>
-    </TableHead>
-  );
-}
-
-EnhancedTableHead.propTypes = {
-  numSelected: PropTypes.number.isRequired,
-  onRequestSort: PropTypes.func.isRequired,
-  onSelectAllClick: PropTypes.func.isRequired,
-  order: PropTypes.oneOf(["asc", "desc"]).isRequired,
-  orderBy: PropTypes.string.isRequired,
-  rowCount: PropTypes.number.isRequired,
-};
-
-function EnhancedTableToolbar(props) {
-  const { numSelected } = props;
-  return (
-    <Toolbar
-      sx={[
-        {
-          pl: { sm: 2 },
-          pr: { xs: 1, sm: 1 },
-        },
-        numSelected > 0 && {
-          bgcolor: (theme) =>
-            alpha(
-              theme.palette.primary.main,
-              theme.palette.action.activatedOpacity,
-            ),
-        },
-      ]}
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`tabpanel-${index}`}
+      aria-labelledby={`tab-${index}`}
+      {...other}
     >
-      {numSelected > 0 ? (
-        <Typography
-          sx={{ flex: "1 1 100%" }}
-          color="inherit"
-          variant="subtitle1"
-          component="div"
-        >
-          {numSelected} selected
-        </Typography>
-      ) : (
-        <Typography
-          sx={{ flex: "1 1 100%" }}
-          variant="h6"
-          id="tableTitle"
-          component="div"
-        >
-          Tasks
-        </Typography>
-      )}
-      {numSelected > 0 ? (
-        <Tooltip title="Delete">
-          <IconButton>
-            <DeleteIcon />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <Tooltip title="Filter list">
-          <IconButton>
-            <FilterListIcon />
-          </IconButton>
-        </Tooltip>
-      )}
-    </Toolbar>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
   );
 }
-
-EnhancedTableToolbar.propTypes = {
-  numSelected: PropTypes.number.isRequired,
-};
 
 export default function TaskTable() {
   const dispatch = useDispatch();
-  const [open, setOpen] = React.useState(false);
-  const handleClose = (_, reason) => {
-    if (reason === "backdropClick") {
-      return;
-    }
-    setOpen(false);
-  };
-  const rows = useSelector((state) => state.tasks.tasks);
-  console.log("Current tasks in store:", rows);
-  const [order, setOrder] = React.useState("asc");
-  const [orderBy, setOrderBy] = React.useState("calories");
-  const [selected, setSelected] = React.useState([]);
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const user = useAuthContext();
+  const [tabValue, setTabValue] = React.useState(0);
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [taskToEdit, setTaskToEdit] = React.useState(null);
 
-  const handleRequestSort = (event, property) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
+  const taskState = useSelector((state) => state.tasks);
+  const allTasks = React.useMemo(() => {
+    return taskState[user.id]?.tasks || [];
+  }, [taskState, user.id]);
 
-  const handleSelectAllClick = (event) => {
-    if (event.target.checked) {
-      const newSelected = rows.map((n) => n.id);
-      setSelected(newSelected);
-      return;
-    }
-    setSelected([]);
-  };
-
-  const handleDeleteTask = (id) => {
-    dispatch(removeTask(id));
-    handleClose();
-  };
-
-  // const handleClick = (event, id) => {
-  //   const selectedIndex = selected.indexOf(id);
-  //   let newSelected = [];
-
-  //   if (selectedIndex === -1) {
-  //     newSelected = newSelected.concat(selected, id);
-  //   } else if (selectedIndex === 0) {
-  //     newSelected = newSelected.concat(selected.slice(1));
-  //   } else if (selectedIndex === selected.length - 1) {
-  //     newSelected = newSelected.concat(selected.slice(0, -1));
-  //   } else if (selectedIndex > 0) {
-  //     newSelected = newSelected.concat(
-  //       selected.slice(0, selectedIndex),
-  //       selected.slice(selectedIndex + 1),
-  //     );
-  //   }
-  //   setSelected(newSelected);
-  // };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  // Avoid a layout jump when reaching the last page with empty rows.
-  const emptyRows =
-    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - rows.length) : 0;
-
-  const visibleRows = React.useMemo(
-    () =>
-      [...rows]
-        .sort(getComparator(order, orderBy))
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [order, orderBy, page, rowsPerPage, rows],
+  const todoTasks = React.useMemo(
+    () => allTasks.filter((task) => task.status === "To-Do"),
+    [allTasks],
   );
+
+  const inProgressTasks = React.useMemo(
+    () => allTasks.filter((task) => task.status === "In-Progress"),
+    [allTasks],
+  );
+
+  const completedTasks = React.useMemo(
+    () => allTasks.filter((task) => task.status === "Completed"),
+    [allTasks],
+  );
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  const handleDeleteTask = (taskId) => {
+    dispatch(removeTask({ userId: user.id, taskId }));
+  };
+
+  const handleStatusChange = (taskId, newStatus) => {
+    const task = allTasks.find((t) => t.id === taskId);
+    if (task) {
+      dispatch(editTask({ userId: user.id, task: { ...task, status: newStatus } }));
+    }
+  };
+
+  const handleEditClick = (task) => {
+    setTaskToEdit(task);
+    setEditDialogOpen(true);
+  };
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Paper sx={{ width: "100%", mb: 2 }}>
-        <EnhancedTableToolbar numSelected={selected.length} />
-        <TableContainer>
-          <Table
-            sx={{ minWidth: 750 }}
-            aria-labelledby="tableTitle"
-            size="medium"
-          >
-            <EnhancedTableHead
-              numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
-              onSelectAllClick={handleSelectAllClick}
-              onRequestSort={handleRequestSort}
-              rowCount={rows.length}
-            />
-            <TableBody>
-              {visibleRows.map((row, index) => {
-                const isItemSelected = selected.includes(row.id);
-                const labelId = `enhanced-table-checkbox-${index}`;
+      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="task status tabs"
+        >
+          <Tab
+            label={`To-Do (${todoTasks.length})`}
+            id="tab-0"
+            aria-controls="tabpanel-0"
+          />
+          <Tab
+            label={`In-Progress (${inProgressTasks.length})`}
+            id="tab-1"
+            aria-controls="tabpanel-1"
+          />
+          <Tab
+            label={`Completed (${completedTasks.length})`}
+            id="tab-2"
+            aria-controls="tabpanel-2"
+          />
+        </Tabs>
+      </Box>
 
-                return (
-                  <TableRow
-                    hover
-                    // onClick={(event) => handleClick(event, row.id)}
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={row.id}
-                    selected={isItemSelected}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <TableCell
-                      component="th"
-                      id={labelId}
-                      scope="row"
-                      sx={{ paddingLeft: 2 }}
-                    >
-                      {row.taskName}
-                    </TableCell>
-                    <TableCell align="right">{row.description}</TableCell>
-                    <TableCell align="right">{row.priority}</TableCell>
-                    <TableCell align="right">
-                      {dayjs(row.startDateTime).format("MMMM-DD-YYYY")}
-                    </TableCell>
-                    <TableCell align="right">
-                      {dayjs(row.endDateTime).format("MMMM-DD-YYYY")}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton onClick={() => setOpen(true)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                    <Dialog open={open} onClose={handleClose}>
-                      <DialogTitle>Delete Task</DialogTitle>
-                      <DialogContent sx={{ paddingTop: 2 }}>
-                        <Typography>
-                          Are you sure you want to delete {row.taskName} ?
-                        </Typography>
-                      </DialogContent>
-                      <DialogActions>
-                        <Button onClick={handleClose}>Cancel</Button>
-                        <Button onClick={() => handleDeleteTask(row.id)}>
-                          Delete
-                        </Button>
-                      </DialogActions>
-                    </Dialog>
-                  </TableRow>
-                );
-              })}
-              {emptyRows > 0 && (
-                <TableRow
-                  style={{
-                    height: 53 * emptyRows,
-                  }}
-                >
-                  <TableCell colSpan={6} />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={rows.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </Paper>
+      <TabPanel value={tabValue} index={0}>
+        {todoTasks.length === 0 ? (
+          <Typography variant="body1" color="textSecondary">
+            No To-Do tasks yet. Create one to get started!
+          </Typography>
+        ) : (
+          <TaskTableContent
+            tasks={todoTasks}
+            onDelete={handleDeleteTask}
+            onStatusChange={handleStatusChange}
+            onEdit={handleEditClick}
+          />
+        )}
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={1}>
+        {inProgressTasks.length === 0 ? (
+          <Typography variant="body1" color="textSecondary">
+            No tasks in progress. Move a task here to get started!
+          </Typography>
+        ) : (
+          <TaskTableContent
+            tasks={inProgressTasks}
+            onDelete={handleDeleteTask}
+            onStatusChange={handleStatusChange}
+            onEdit={handleEditClick}
+          />
+        )}
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={2}>
+        {completedTasks.length === 0 ? (
+          <Typography variant="body1" color="textSecondary">
+            No completed tasks yet. Complete a task to see it here!
+          </Typography>
+        ) : (
+          <TaskTableContent
+            tasks={completedTasks}
+            onDelete={handleDeleteTask}
+            onStatusChange={handleStatusChange}
+            onEdit={handleEditClick}
+          />
+        )}
+      </TabPanel>
+
+      <EditTask open={editDialogOpen} setOpen={setEditDialogOpen} task={taskToEdit} />
     </Box>
   );
 }
