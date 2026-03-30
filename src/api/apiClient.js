@@ -2,7 +2,7 @@ import axios from "axios";
 import { store } from "../store/store";
 import { logout } from "../pages/auth/authSlice";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // Memory storage for tokens (access token remains in memory)
 let tokenStore = {
@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
     // Handle network errors
     if (!error.response) {
       const networkError = new Error(
-        "Network error: Unable to reach the server. Make sure the backend is running on http://localhost:5000"
+        "Network error: Unable to reach the server. Make sure the backend is running and the frontend proxy is configured."
       );
       return Promise.reject(networkError);
     }

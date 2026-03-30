@@ -1,65 +1,25 @@
 import {
   AppBar,
-  Alert,
   Avatar,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Drawer,
-  Grid,
   IconButton,
-  Menu,
-  MenuItem,
-  Paper,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableSortLabel,
-  Tabs,
-  TextField,
   Toolbar,
   Typography,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { CreateTask } from "./CreateTask";
 import TaskTable from "./TaskTable";
-import TaskTableContent from "./TaskTableContent";
 import { EditTask } from "./EditTask";
 import { logout } from "../auth/authSlice";
 import { useAuth } from "../../routes/hooks/useAuth";
 import { editTaskAcrossUsers, removeTaskAcrossUsers, removeUserTasks } from "./taskSlice";
 import { userService } from "../../api/userService";
-import { taskService } from "../../api/taskService";
 import dayjs from "dayjs";
-
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`admin-tabpanel-${index}`}
-      aria-labelledby={`admin-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
-    </div>
-  );
-}
+import { AdminManagementSection, AdminTasksSection } from "./HomePageSections";
+import HomePageDialogs from "./HomePageDialogs";
 
 const HomePage = () => {
   const dispatch = useDispatch();
@@ -112,7 +72,9 @@ const HomePage = () => {
       const response = await userService.getUsers(100, 0);
       setUsers(response?.users || []);
     } catch (error) {
-      console.error("Failed to load users:", error);
+      if (import.meta.env.DEV) {
+        console.error("Failed to load users:", error);
+      }
       setUsersError(error?.message || "Failed to load users");
       setUsers([]);
     }
@@ -493,7 +455,7 @@ const HomePage = () => {
           </Box>
 
           <Typography variant="h6" component="div" textAlign="center">
-            Heremes
+            Hermes
           </Typography>
 
           <Box sx={{ justifySelf: "end" }}>
@@ -549,296 +511,49 @@ const HomePage = () => {
         {!isAdmin && <TaskTable />}
 
         {isAdmin && adminPage === "management" && (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-              Admin Portal
-            </Typography>
-
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-              <Tabs value={adminManagementTab} onChange={(_, value) => setAdminManagementTab(value)}>
-                <Tab label="All Users Tasks" />
-                <Tab label="User Management" />
-              </Tabs>
-            </Box>
-
-            {adminManagementTab === 0 && (
-              <Paper>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>
-                          <TableSortLabel
-                            active={allUsersTaskSortBy === "ownerName"}
-                            direction={allUsersTaskSortBy === "ownerName" ? allUsersTaskSortOrder : "asc"}
-                            onClick={() => handleAllUsersTaskSort("ownerName")}
-                          >
-                            User
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell>
-                          <TableSortLabel
-                            active={allUsersTaskSortBy === "taskName"}
-                            direction={allUsersTaskSortBy === "taskName" ? allUsersTaskSortOrder : "asc"}
-                            onClick={() => handleAllUsersTaskSort("taskName")}
-                          >
-                            Task Name
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Assignee</TableCell>
-                        <TableCell>Assigned To</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Priority</TableCell>
-                        <TableCell>
-                          <TableSortLabel
-                            active={allUsersTaskSortBy === "startDateTime"}
-                            direction={allUsersTaskSortBy === "startDateTime" ? allUsersTaskSortOrder : "asc"}
-                            onClick={() => handleAllUsersTaskSort("startDateTime")}
-                          >
-                            Start Date
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell>
-                          <TableSortLabel
-                            active={allUsersTaskSortBy === "endDateTime"}
-                            direction={allUsersTaskSortBy === "endDateTime" ? allUsersTaskSortOrder : "asc"}
-                            onClick={() => handleAllUsersTaskSort("endDateTime")}
-                          >
-                            End Date
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell>File</TableCell>
-                        <TableCell align="right">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {allUsersTasks.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={11}>
-                            No tasks available for any user.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedAllUsersTasks.map((task) => (
-                          <TableRow key={`${task.ownerId}-${task.id}`}>
-                            <TableCell>{task.ownerName || taskOwnerMap[task.ownerId] || "Unknown User"}</TableCell>
-                            <TableCell>{task.taskName}</TableCell>
-                            <TableCell
-                              onDoubleClick={() => {
-                                setDescriptionTaskSelected(task);
-                                setDescriptionDialogOpen(true);
-                              }}
-                              sx={{ cursor: "pointer", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                              title="Double-click to view full description"
-                            >
-                              {task.description ? task.description.substring(0, 50) + "..." : "-"}
-                            </TableCell>
-                            <TableCell>{task.assigneeName || "-"}</TableCell>
-                            <TableCell>{task.assignedToName || "-"}</TableCell>
-                            <TableCell>{task.status}</TableCell>
-                            <TableCell>{task.priority}</TableCell>
-                            <TableCell>
-                              {task.startDateTime
-                                ? dayjs(task.startDateTime).format("MMM-DD-YYYY")
-                                : "-"}
-                            </TableCell>
-                            <TableCell>
-                              {task.endDateTime
-                                ? dayjs(task.endDateTime).format("MMM-DD-YYYY")
-                                : "-"}
-                            </TableCell>
-                            <TableCell>
-                              {task.files && task.files.length > 0 ? (
-                                <Button
-                                  size="small"
-                                  startIcon={<FileDownloadIcon />}
-                                  onClick={() => taskService.downloadFile(task.files[0].id, task.files[0].originalName)}
-                                >
-                                  Download
-                                </Button>
-                              ) : (
-                                <Typography variant="body2" color="textSecondary">
-                                  No file
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              <IconButton
-                                onClick={(event) => handleAllUsersTaskMenuOpen(event, task)}
-                              >
-                                <MoreVertIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <TablePagination
-                  rowsPerPageOptions={[5, 10, 25]}
-                  component="div"
-                  count={allUsersTasks.length}
-                  rowsPerPage={allUsersTaskRowsPerPage}
-                  page={allUsersTaskPage}
-                  onPageChange={(_, newPage) => setAllUsersTaskPage(newPage)}
-                  onRowsPerPageChange={(event) => {
-                    setAllUsersTaskRowsPerPage(parseInt(event.target.value, 10));
-                    setAllUsersTaskPage(0);
-                  }}
-                />
-              </Paper>
-            )}
-
-            {adminManagementTab === 1 && (
-              <Box>
-                <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-                  <Button variant="contained" onClick={() => setAddUserDialogOpen(true)}>
-                    Add User
-                  </Button>
-                </Box>
-
-                {usersError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {usersError}
-                  </Alert>
-                )}
-
-                <Paper>
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>
-                            <TableSortLabel
-                              active
-                              direction={usersSortOrder}
-                              onClick={handleUsersSort}
-                            >
-                              Full Name
-                            </TableSortLabel>
-                          </TableCell>
-                          <TableCell>Email</TableCell>
-                          <TableCell>Role</TableCell>
-                          <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {paginatedUsers.map((user) => (
-                          <TableRow key={user.id}>
-                            <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>{user.role || "user"}</TableCell>
-                            <TableCell align="right">
-                              <IconButton
-                                onClick={(event) => handleUserMenuOpen(event, user)}
-                                disabled={user.id === currentUser.id || user.role === "admin"}
-                              >
-                                <MoreVertIcon />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  <TablePagination
-                    rowsPerPageOptions={[5, 10, 25]}
-                    component="div"
-                    count={users.length}
-                    rowsPerPage={usersRowsPerPage}
-                    page={usersPage}
-                    onPageChange={(_, newPage) => setUsersPage(newPage)}
-                    onRowsPerPageChange={(event) => {
-                      setUsersRowsPerPage(parseInt(event.target.value, 10));
-                      setUsersPage(0);
-                    }}
-                  />
-                </Paper>
-              </Box>
-            )}
-          </Box>
+          <AdminManagementSection
+            adminManagementTab={adminManagementTab}
+            setAdminManagementTab={setAdminManagementTab}
+            allUsersTaskSortBy={allUsersTaskSortBy}
+            allUsersTaskSortOrder={allUsersTaskSortOrder}
+            handleAllUsersTaskSort={handleAllUsersTaskSort}
+            allUsersTasks={allUsersTasks}
+            paginatedAllUsersTasks={paginatedAllUsersTasks}
+            taskOwnerMap={taskOwnerMap}
+            setDescriptionTaskSelected={setDescriptionTaskSelected}
+            setDescriptionDialogOpen={setDescriptionDialogOpen}
+            handleAllUsersTaskMenuOpen={handleAllUsersTaskMenuOpen}
+            allUsersTaskRowsPerPage={allUsersTaskRowsPerPage}
+            allUsersTaskPage={allUsersTaskPage}
+            setAllUsersTaskPage={setAllUsersTaskPage}
+            setAllUsersTaskRowsPerPage={setAllUsersTaskRowsPerPage}
+            usersError={usersError}
+            setAddUserDialogOpen={setAddUserDialogOpen}
+            usersSortOrder={usersSortOrder}
+            handleUsersSort={handleUsersSort}
+            paginatedUsers={paginatedUsers}
+            currentUser={currentUser}
+            handleUserMenuOpen={handleUserMenuOpen}
+            usersLength={users.length}
+            usersRowsPerPage={usersRowsPerPage}
+            usersPage={usersPage}
+            setUsersPage={setUsersPage}
+            setUsersRowsPerPage={setUsersRowsPerPage}
+          />
         )}
 
         {isAdmin && adminPage === "tasks" && (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-              Admin Tasks
-            </Typography>
-
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-              <Tabs
-                value={adminTaskTab}
-                onChange={(_, newValue) => setAdminTaskTab(newValue)}
-                aria-label="admin task status tabs"
-              >
-                <Tab label={`To-Do (${adminTodoTasks.length})`} />
-                <Tab label={`In-Progress (${adminInProgressTasks.length})`} />
-                <Tab label={`Completed (${adminCompletedTasks.length})`} />
-              </Tabs>
-            </Box>
-
-            <TabPanel value={adminTaskTab} index={0}>
-              {adminTodoTasks.length === 0 ? (
-                <Typography variant="body1" color="textSecondary">
-                  No To-Do admin tasks yet.
-                </Typography>
-              ) : (
-                <TaskTableContent
-                  tasks={adminTodoTasks}
-                  onDelete={handleAdminTaskDelete}
-                  onStatusChange={handleAdminTaskStatusChange}
-                  onEdit={handleAdminTaskEditOpen}
-                  canDeleteTask={() => true}
-                  canEditTask={() => true}
-                  currentUserId={currentUser.id}
-                  currentUserName={`${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()}
-                  showAssignedTo
-                />
-              )}
-            </TabPanel>
-
-            <TabPanel value={adminTaskTab} index={1}>
-              {adminInProgressTasks.length === 0 ? (
-                <Typography variant="body1" color="textSecondary">
-                  No admin tasks in progress.
-                </Typography>
-              ) : (
-                <TaskTableContent
-                  tasks={adminInProgressTasks}
-                  onDelete={handleAdminTaskDelete}
-                  onStatusChange={handleAdminTaskStatusChange}
-                  onEdit={handleAdminTaskEditOpen}
-                  canDeleteTask={() => true}
-                  canEditTask={() => true}
-                  currentUserId={currentUser.id}
-                  currentUserName={`${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()}
-                  showAssignedTo
-                />
-              )}
-            </TabPanel>
-
-            <TabPanel value={adminTaskTab} index={2}>
-              {adminCompletedTasks.length === 0 ? (
-                <Typography variant="body1" color="textSecondary">
-                  No completed admin tasks yet.
-                </Typography>
-              ) : (
-                <TaskTableContent
-                  tasks={adminCompletedTasks}
-                  onDelete={handleAdminTaskDelete}
-                  onStatusChange={handleAdminTaskStatusChange}
-                  onEdit={handleAdminTaskEditOpen}
-                  canDeleteTask={() => true}
-                  canEditTask={() => true}
-                  currentUserId={currentUser.id}
-                  currentUserName={`${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim()}
-                  showAssignedTo
-                />
-              )}
-            </TabPanel>
-          </Box>
+          <AdminTasksSection
+            adminTaskTab={adminTaskTab}
+            setAdminTaskTab={setAdminTaskTab}
+            adminTodoTasks={adminTodoTasks}
+            adminInProgressTasks={adminInProgressTasks}
+            adminCompletedTasks={adminCompletedTasks}
+            handleAdminTaskDelete={handleAdminTaskDelete}
+            handleAdminTaskStatusChange={handleAdminTaskStatusChange}
+            handleAdminTaskEditOpen={handleAdminTaskEditOpen}
+            currentUser={currentUser}
+          />
         )}
       </Box>
 
@@ -851,282 +566,44 @@ const HomePage = () => {
         onSubmitTask={handleAdminTaskEditSave}
       />
 
-      <Dialog
-        open={addUserDialogOpen}
-        onClose={() => {
-          setAddUserDialogOpen(false);
-          resetNewUserForm();
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add User</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            {addUserError && (
-              <Grid size={{ xs: 12 }}>
-                <Alert severity="error">{addUserError}</Alert>
-              </Grid>
-            )}
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="First Name"
-                value={newUser.firstName}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, firstName: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Last Name"
-                value={newUser.lastName}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, lastName: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={newUser.email}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, email: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={newUser.password}
-                onChange={(e) =>
-                  setNewUser((prev) => ({ ...prev, password: e.target.value }))
-                }
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setAddUserDialogOpen(false);
-              resetNewUserForm();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={handleAddUser}>
-            Add User
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Menu
-        anchorEl={userMenuAnchor}
-        open={Boolean(userMenuAnchor)}
-        onClose={handleUserMenuClose}
-      >
-        <MenuItem onClick={handleEditUserOpen}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteUserFromMenu}>Delete</MenuItem>
-      </Menu>
-
-      <Menu
-        anchorEl={allUsersTaskMenuAnchor}
-        open={Boolean(allUsersTaskMenuAnchor)}
-        onClose={handleAllUsersTaskMenuClose}
-      >
-        <MenuItem onClick={handleAllUsersTaskMenuEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleAllUsersTaskMenuDelete}>Delete</MenuItem>
-      </Menu>
-
-      <Dialog
-        open={editUserDialogOpen}
-        onClose={() => {
-          setEditUserDialogOpen(false);
-          setEditingUser(null);
-          setEditUserError("");
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Edit User</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            {editUserError && (
-              <Grid size={{ xs: 12 }}>
-                <Alert severity="error">{editUserError}</Alert>
-              </Grid>
-            )}
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="First Name"
-                value={editingUser?.firstName || ""}
-                onChange={(e) =>
-                  setEditingUser((prev) => ({ ...prev, firstName: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Last Name"
-                value={editingUser?.lastName || ""}
-                onChange={(e) =>
-                  setEditingUser((prev) => ({ ...prev, lastName: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={editingUser?.email || ""}
-                onChange={(e) =>
-                  setEditingUser((prev) => ({ ...prev, email: e.target.value }))
-                }
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                select
-                label="Role"
-                value={editingUser?.role || "user"}
-                onChange={(e) =>
-                  setEditingUser((prev) => ({ ...prev, role: e.target.value }))
-                }
-              >
-                <MenuItem value="user">User</MenuItem>
-                <MenuItem value="admin">Admin</MenuItem>
-              </TextField>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setEditUserDialogOpen(false);
-              setEditingUser(null);
-              setEditUserError("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={handleEditUserSave}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={deleteUserConfirmOpen}
-        onClose={() => {
-          setDeleteUserConfirmOpen(false);
-          setUserToDelete(null);
-        }}
-      >
-        <DialogTitle>Confirm Delete User</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>?
-          </Typography>
-          <Typography sx={{ mt: 2, color: "error.main", fontSize: "0.9rem" }}>
-            This action will also delete all tasks created by this user.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setDeleteUserConfirmOpen(false);
-              setUserToDelete(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleConfirmDeleteUser}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={descriptionDialogOpen}
-        onClose={() => {
-          setDescriptionDialogOpen(false);
-          setDescriptionTaskSelected(null);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Task Description</DialogTitle>
-        <DialogContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            <strong>{descriptionTaskSelected?.taskName}</strong>
-          </Typography>
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-            {descriptionTaskSelected?.description || "No description provided"}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setDescriptionDialogOpen(false);
-              setDescriptionTaskSelected(null);
-            }}
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={adminTaskDeleteConfirmOpen}
-        onClose={() => {
-          setAdminTaskDeleteConfirmOpen(false);
-          setAdminTaskToDelete(null);
-        }}
-      >
-        <DialogTitle>Confirm Delete Task</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete <strong>{adminTaskToDelete?.taskName}</strong>?
-          </Typography>
-          <Typography sx={{ mt: 2, color: "error.main", fontSize: "0.9rem" }}>
-            This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setAdminTaskDeleteConfirmOpen(false);
-              setAdminTaskToDelete(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleConfirmAllUsersTaskDelete}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <HomePageDialogs
+        addUserDialogOpen={addUserDialogOpen}
+        setAddUserDialogOpen={setAddUserDialogOpen}
+        resetNewUserForm={resetNewUserForm}
+        addUserError={addUserError}
+        newUser={newUser}
+        setNewUser={setNewUser}
+        handleAddUser={handleAddUser}
+        userMenuAnchor={userMenuAnchor}
+        handleUserMenuClose={handleUserMenuClose}
+        handleEditUserOpen={handleEditUserOpen}
+        handleDeleteUserFromMenu={handleDeleteUserFromMenu}
+        allUsersTaskMenuAnchor={allUsersTaskMenuAnchor}
+        handleAllUsersTaskMenuClose={handleAllUsersTaskMenuClose}
+        handleAllUsersTaskMenuEdit={handleAllUsersTaskMenuEdit}
+        handleAllUsersTaskMenuDelete={handleAllUsersTaskMenuDelete}
+        editUserDialogOpen={editUserDialogOpen}
+        setEditUserDialogOpen={setEditUserDialogOpen}
+        setEditingUser={setEditingUser}
+        setEditUserError={setEditUserError}
+        editUserError={editUserError}
+        editingUser={editingUser}
+        handleEditUserSave={handleEditUserSave}
+        deleteUserConfirmOpen={deleteUserConfirmOpen}
+        setDeleteUserConfirmOpen={setDeleteUserConfirmOpen}
+        setUserToDelete={setUserToDelete}
+        userToDelete={userToDelete}
+        handleConfirmDeleteUser={handleConfirmDeleteUser}
+        descriptionDialogOpen={descriptionDialogOpen}
+        setDescriptionDialogOpen={setDescriptionDialogOpen}
+        setDescriptionTaskSelected={setDescriptionTaskSelected}
+        descriptionTaskSelected={descriptionTaskSelected}
+        adminTaskDeleteConfirmOpen={adminTaskDeleteConfirmOpen}
+        setAdminTaskDeleteConfirmOpen={setAdminTaskDeleteConfirmOpen}
+        setAdminTaskToDelete={setAdminTaskToDelete}
+        adminTaskToDelete={adminTaskToDelete}
+        handleConfirmAllUsersTaskDelete={handleConfirmAllUsersTaskDelete}
+      />
 
     </Box>
   );

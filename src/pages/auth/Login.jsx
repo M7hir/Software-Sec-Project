@@ -29,17 +29,25 @@ function Login() {
   const [openError, setOpenError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleClose = (event, reason) => {
+  const handleCloseSuccess = (event, reason) => {
     if (reason === "clickaway") {
       return;
     }
     setOpenSuccess(false);
+  };
+
+  const handleCloseError = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
     setOpenError(false);
   };
 
   const onSubmit = async (data) => {
     setLoading(true);
     setErrorMessage("");
+    setOpenSuccess(false);
+    setOpenError(false);
 
     try {
       // Call backend API
@@ -62,13 +70,17 @@ function Login() {
       // Dispatch user data to Redux
       dispatch(login(userData));
 
+      setOpenError(false);
       setOpenSuccess(true);
       setTimeout(() => {
         router("/");
       }, 1500);
     } catch (error) {
-      console.error("Login error:", error);
+      if (import.meta.env.DEV) {
+        console.error("Login error:", error);
+      }
       setErrorMessage(error.message || "Login failed. Please check your credentials.");
+      setOpenSuccess(false);
       setOpenError(true);
     } finally {
       setLoading(false);
@@ -119,18 +131,24 @@ function Login() {
           </Grid>
         </form>
       </RHFForm>
-      <Snackbar
-        open={openSuccess || openError}
-        autoHideDuration={6000}
-        onClose={handleClose}
-      >
+      <Snackbar open={openSuccess} autoHideDuration={6000} onClose={handleCloseSuccess}>
         <Alert
-          onClose={handleClose}
-          severity={openError ? "error" : "success"}
+          onClose={handleCloseSuccess}
+          severity="success"
           variant="filled"
           sx={{ width: "100%" }}
         >
-          {openError ? errorMessage : "Logged in successfully!"}
+          Logged in successfully!
+        </Alert>
+      </Snackbar>
+      <Snackbar open={openError} autoHideDuration={6000} onClose={handleCloseError}>
+        <Alert
+          onClose={handleCloseError}
+          severity="error"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {errorMessage}
         </Alert>
       </Snackbar>
     </AuthBodyWrapper>
