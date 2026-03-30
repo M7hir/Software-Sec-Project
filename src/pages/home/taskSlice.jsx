@@ -4,6 +4,10 @@ const taskSlice = createSlice({
     name : "tasks",
     initialState : {},
     reducers: {
+        setTasks: (state, action) => {
+            const { userId, tasks } = action.payload;
+            state[userId] = { tasks: tasks || [] };
+        },
         addTask : (state,action) => {
             const { userId, task } = action.payload;
             if (!state[userId]) {
@@ -71,6 +75,7 @@ const taskSlice = createSlice({
 })
 
 export const {
+    setTasks,
     addTask,
     editTask,
     removeTask,

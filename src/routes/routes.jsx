@@ -1,6 +1,7 @@
 import AuthRoutes from "../pages/auth/routes";
 import ProtectedRoute from "./ProtectedRoute";
 import { HomePage } from "../pages/home";
+import { Navigate } from "react-router-dom";
 
 const routes = [
   {
@@ -10,6 +11,10 @@ const routes = [
         <HomePage />
       </ProtectedRoute>
     ),
+  },
+  {
+    path: "/login",
+    element: <Navigate to="/auth" replace />,
   },
   AuthRoutes,
   { path: "*", element: <div>404 - Page Not Found</div> },

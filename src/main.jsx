@@ -2,19 +2,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { BrowserRouter } from "react-router-dom";
-import { persistor, store } from "./store/store.js";
+import { store } from "./store/store.js";
 import { Provider } from "react-redux";
-import { PersistGate } from "redux-persist/integration/react";
 import { CssBaseline } from "@mui/material";
+import { initializeTokens } from "./api/apiClient.js";
+
+// Initialize tokens on app start
+initializeTokens();
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <StrictMode>
       <Provider store={store}>
         <CssBaseline />
-        <PersistGate loading={null} persistor={persistor}>
-          <App />
-        </PersistGate>
+        <App />
       </Provider>
     </StrictMode>
   </BrowserRouter>,

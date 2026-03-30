@@ -69,13 +69,24 @@ export default function TaskTable() {
 
   const canDeleteTask = (task) => (task?.createdByUserId ? task.createdByUserId === user.id : true);
   const canEditTask = (task) => (task?.createdByUserId ? task.createdByUserId === user.id : true);
+  const canChangeStatus = (task) => {
+    // Allow status change if user CREATED the task OR is the ASSIGNEE
+    // Convert to numbers for comparison to avoid string/number mismatches
+    const currentUserIdNum = Number(user.id);
+    const taskCreatorIdNum = Number(task?.createdByUserId);
+    const taskAssigneeIdNum = Number(task?.assigneeId);
+    
+    const isCreator = (task?.createdByUserId) ? (taskCreatorIdNum === currentUserIdNum) : false;
+    const isAssignee = (task?.assigneeId) ? (taskAssigneeIdNum === currentUserIdNum) : false;
+    return isCreator || isAssignee;
+  };
   const currentUserName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
 
   const handleStatusChange = (taskId, newStatus) => {
     const task = allTasks.find((t) => t.id === taskId);
-    if (task && canEditTask(task)) {
+    // if (task && canChangeStatus(task)) {
       dispatch(editTask({ userId: user.id, task: { ...task, status: newStatus } }));
-    }
+    // }
   };
 
   const handleEditClick = (task) => {

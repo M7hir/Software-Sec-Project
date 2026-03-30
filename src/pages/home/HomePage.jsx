@@ -29,6 +29,9 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { CreateTask } from "./CreateTask";
@@ -38,8 +41,9 @@ import { EditTask } from "./EditTask";
 import { logout } from "../auth/authSlice";
 import { useAuth } from "../../routes/hooks/useAuth";
 import { editTaskAcrossUsers, removeTaskAcrossUsers, removeUserTasks } from "./taskSlice";
+import { userService } from "../../api/userService";
+import { taskService } from "../../api/taskService";
 import dayjs from "dayjs";
-import { v4 as uuidv4 } from "uuid";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -69,6 +73,7 @@ const HomePage = () => {
   const [adminManagementTab, setAdminManagementTab] = React.useState(0);
   const [adminTaskTab, setAdminTaskTab] = React.useState(0);
   const [users, setUsers] = React.useState([]);
+  const [usersError, setUsersError] = React.useState("");
   const [addUserDialogOpen, setAddUserDialogOpen] = React.useState(false);
   const [addUserError, setAddUserError] = React.useState("");
   const [editUserDialogOpen, setEditUserDialogOpen] = React.useState(false);
@@ -78,10 +83,13 @@ const HomePage = () => {
     lastName: "",
     email: "",
     password: "",
+    role: "user",
   });
   const [editingUser, setEditingUser] = React.useState(null);
   const [userMenuAnchor, setUserMenuAnchor] = React.useState(null);
   const [selectedUser, setSelectedUser] = React.useState(null);
+  const [deleteUserConfirmOpen, setDeleteUserConfirmOpen] = React.useState(false);
+  const [userToDelete, setUserToDelete] = React.useState(null);
   const [allUsersTaskPage, setAllUsersTaskPage] = React.useState(0);
   const [allUsersTaskRowsPerPage, setAllUsersTaskRowsPerPage] = React.useState(5);
   const [usersPage, setUsersPage] = React.useState(0);
@@ -91,10 +99,23 @@ const HomePage = () => {
   const [usersSortOrder, setUsersSortOrder] = React.useState("asc");
   const [adminEditTaskOpen, setAdminEditTaskOpen] = React.useState(false);
   const [adminTaskToEdit, setAdminTaskToEdit] = React.useState(null);
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = React.useState(false);
+  const [descriptionTaskSelected, setDescriptionTaskSelected] = React.useState(null);
+  const [adminTaskDeleteConfirmOpen, setAdminTaskDeleteConfirmOpen] = React.useState(false);
+  const [adminTaskToDelete, setAdminTaskToDelete] = React.useState(null);
+  const [allUsersTaskMenuAnchor, setAllUsersTaskMenuAnchor] = React.useState(null);
+  const [selectedAllUsersTask, setSelectedAllUsersTask] = React.useState(null);
 
-  const loadUsers = React.useCallback(() => {
-    const localUsers = JSON.parse(localStorage.getItem("userData")) || [];
-    setUsers(localUsers);
+  const loadUsers = React.useCallback(async () => {
+    try {
+      setUsersError("");
+      const response = await userService.getUsers(100, 0);
+      setUsers(response?.users || []);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      setUsersError(error?.message || "Failed to load users");
+      setUsers([]);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -102,7 +123,6 @@ const HomePage = () => {
   }, [loadUsers]);
 
   const handleLogout = () => {
-    localStorage.removeItem("AuthToken");
     dispatch(logout());
     window.location.reload();
   };
@@ -191,6 +211,7 @@ const HomePage = () => {
 
     return Array.from(uniqueTaskMap.values()).map((task) => ({
       ...task,
+      visibleFor: Array.from(task.visibleFor),
       visibleForDisplay: Array.from(task.visibleFor).join(", "),
     }));
   }, [taskState, currentUser.id, taskOwnerMap]);
@@ -237,12 +258,18 @@ const HomePage = () => {
     }
   }, [users.length, usersRowsPerPage, usersPage]);
 
+  const getErrorMessage = (error, fallbackMessage) => {
+    if (typeof error === "string") return error;
+    if (error?.message && typeof error.message === "string") return error.message;
+    return fallbackMessage;
+  };
+
   const resetNewUserForm = () => {
-    setNewUser({ firstName: "", lastName: "", email: "", password: "" });
+    setNewUser({ firstName: "", lastName: "", email: "", password: "", role: "user" });
     setAddUserError("");
   };
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (
       !newUser.firstName.trim() ||
       !newUser.lastName.trim() ||
@@ -253,50 +280,36 @@ const HomePage = () => {
       return;
     }
 
-    const hasDuplicate = users.some(
-      (user) => user.email?.toLowerCase() === newUser.email.trim().toLowerCase(),
-    );
+    try {
+      setAddUserError("");
+      await userService.createUser({
+        firstName: newUser.firstName.trim(),
+        lastName: newUser.lastName.trim(),
+        email: newUser.email.trim(),
+        password: newUser.password,
+        role: newUser.role,
+      });
 
-    if (hasDuplicate) {
-      setAddUserError("A user with this email already exists");
-      return;
+      setAddUserDialogOpen(false);
+      resetNewUserForm();
+      await loadUsers();
+    } catch (error) {
+      setAddUserError(getErrorMessage(error, "Failed to create user"));
     }
-
-    const userToAdd = {
-      id: uuidv4(),
-      firstName: newUser.firstName.trim(),
-      lastName: newUser.lastName.trim(),
-      email: newUser.email.trim(),
-      password: newUser.password,
-      role: "user",
-    };
-
-    const updatedUsers = [...users, userToAdd];
-    localStorage.setItem("userData", JSON.stringify(updatedUsers));
-
-    const ids = JSON.parse(localStorage.getItem("IDs")) || [];
-    localStorage.setItem("IDs", JSON.stringify([...ids, userToAdd.id]));
-
-    setUsers(updatedUsers);
-    setAddUserDialogOpen(false);
-    resetNewUserForm();
   };
 
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     if (userId === currentUser.id) {
       return;
     }
 
-    const updatedUsers = users.filter((user) => user.id !== userId);
-    localStorage.setItem("userData", JSON.stringify(updatedUsers));
-
-    const ids = (JSON.parse(localStorage.getItem("IDs")) || []).filter(
-      (id) => id !== userId,
-    );
-    localStorage.setItem("IDs", JSON.stringify(ids));
-
-    dispatch(removeUserTasks({ userId }));
-    setUsers(updatedUsers);
+    try {
+      await userService.deleteUser(userId);
+      dispatch(removeUserTasks({ userId }));
+      await loadUsers();
+    } catch (error) {
+      setUsersError(getErrorMessage(error, "Failed to delete user"));
+    }
   };
 
   const handleUserMenuOpen = (event, user) => {
@@ -328,12 +341,25 @@ const HomePage = () => {
 
   const handleDeleteUserFromMenu = () => {
     if (selectedUser) {
-      handleDeleteUser(selectedUser.id);
+      setUserToDelete(selectedUser);
+      setDeleteUserConfirmOpen(true);
+      handleUserMenuClose();
     }
-    handleUserMenuClose();
   };
 
-  const handleEditUserSave = () => {
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await handleDeleteUser(userToDelete.id);
+      setDeleteUserConfirmOpen(false);
+      setUserToDelete(null);
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
+  };
+
+  const handleEditUserSave = async () => {
     if (!editingUser) {
       return;
     }
@@ -347,34 +373,21 @@ const HomePage = () => {
       return;
     }
 
-    const duplicateEmail = users.some(
-      (user) =>
-        user.id !== editingUser.id &&
-        user.email?.toLowerCase() === editingUser.email.trim().toLowerCase(),
-    );
+    try {
+      setEditUserError("");
+      await userService.updateUser(editingUser.id, {
+        firstName: editingUser.firstName.trim(),
+        lastName: editingUser.lastName.trim(),
+        email: editingUser.email.trim(),
+        role: editingUser.role,
+      });
 
-    if (duplicateEmail) {
-      setEditUserError("A user with this email already exists");
-      return;
+      setEditUserDialogOpen(false);
+      setEditingUser(null);
+      await loadUsers();
+    } catch (error) {
+      setEditUserError(getErrorMessage(error, "Failed to update user"));
     }
-
-    const updatedUsers = users.map((user) =>
-      user.id === editingUser.id
-        ? {
-            ...user,
-            firstName: editingUser.firstName.trim(),
-            lastName: editingUser.lastName.trim(),
-            email: editingUser.email.trim(),
-            role: editingUser.role,
-          }
-        : user,
-    );
-
-    localStorage.setItem("userData", JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-    setEditUserDialogOpen(false);
-    setEditingUser(null);
-    setEditUserError("");
   };
 
   const handleAllUsersTaskSort = (column) => {
@@ -409,6 +422,48 @@ const HomePage = () => {
 
   const handleAdminTaskEditSave = (taskData) => {
     dispatch(editTaskAcrossUsers({ taskId: taskData.id, task: taskData }));
+  };
+
+  const handleAllUsersTaskEditOpen = (task) => {
+    setAdminTaskToEdit(task);
+    setAdminEditTaskOpen(true);
+  };
+
+  const handleAllUsersTaskDeleteConfirm = (task) => {
+    setAdminTaskToDelete(task);
+    setAdminTaskDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmAllUsersTaskDelete = () => {
+    if (adminTaskToDelete) {
+      dispatch(removeTaskAcrossUsers({ taskId: adminTaskToDelete.id }));
+      setAdminTaskDeleteConfirmOpen(false);
+      setAdminTaskToDelete(null);
+    }
+  };
+
+  const handleAllUsersTaskMenuOpen = (event, task) => {
+    setAllUsersTaskMenuAnchor(event.currentTarget);
+    setSelectedAllUsersTask(task);
+  };
+
+  const handleAllUsersTaskMenuClose = () => {
+    setAllUsersTaskMenuAnchor(null);
+    setSelectedAllUsersTask(null);
+  };
+
+  const handleAllUsersTaskMenuEdit = () => {
+    if (selectedAllUsersTask) {
+      handleAllUsersTaskEditOpen(selectedAllUsersTask);
+      handleAllUsersTaskMenuClose();
+    }
+  };
+
+  const handleAllUsersTaskMenuDelete = () => {
+    if (selectedAllUsersTask) {
+      handleAllUsersTaskDeleteConfirm(selectedAllUsersTask);
+      handleAllUsersTaskMenuClose();
+    }
   };
 
   const goToAdminTasksPage = () => {
@@ -530,6 +585,9 @@ const HomePage = () => {
                             Task Name
                           </TableSortLabel>
                         </TableCell>
+                        <TableCell>Description</TableCell>
+                        <TableCell>Assignee</TableCell>
+                        <TableCell>Assigned To</TableCell>
                         <TableCell>Status</TableCell>
                         <TableCell>Priority</TableCell>
                         <TableCell>
@@ -550,12 +608,14 @@ const HomePage = () => {
                             End Date
                           </TableSortLabel>
                         </TableCell>
+                        <TableCell>File</TableCell>
+                        <TableCell align="right">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {allUsersTasks.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6}>
+                          <TableCell colSpan={11}>
                             No tasks available for any user.
                           </TableCell>
                         </TableRow>
@@ -564,6 +624,18 @@ const HomePage = () => {
                           <TableRow key={`${task.ownerId}-${task.id}`}>
                             <TableCell>{task.ownerName || taskOwnerMap[task.ownerId] || "Unknown User"}</TableCell>
                             <TableCell>{task.taskName}</TableCell>
+                            <TableCell
+                              onDoubleClick={() => {
+                                setDescriptionTaskSelected(task);
+                                setDescriptionDialogOpen(true);
+                              }}
+                              sx={{ cursor: "pointer", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              title="Double-click to view full description"
+                            >
+                              {task.description ? task.description.substring(0, 50) + "..." : "-"}
+                            </TableCell>
+                            <TableCell>{task.assigneeName || "-"}</TableCell>
+                            <TableCell>{task.assignedToName || "-"}</TableCell>
                             <TableCell>{task.status}</TableCell>
                             <TableCell>{task.priority}</TableCell>
                             <TableCell>
@@ -575,6 +647,28 @@ const HomePage = () => {
                               {task.endDateTime
                                 ? dayjs(task.endDateTime).format("MMM-DD-YYYY")
                                 : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {task.files && task.files.length > 0 ? (
+                                <Button
+                                  size="small"
+                                  startIcon={<FileDownloadIcon />}
+                                  onClick={() => taskService.downloadFile(task.files[0].id, task.files[0].originalName)}
+                                >
+                                  Download
+                                </Button>
+                              ) : (
+                                <Typography variant="body2" color="textSecondary">
+                                  No file
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                onClick={(event) => handleAllUsersTaskMenuOpen(event, task)}
+                              >
+                                <MoreVertIcon />
+                              </IconButton>
                             </TableCell>
                           </TableRow>
                         ))
@@ -604,6 +698,12 @@ const HomePage = () => {
                     Add User
                   </Button>
                 </Box>
+
+                {usersError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {usersError}
+                  </Alert>
+                )}
 
                 <Paper>
                   <TableContainer>
@@ -837,6 +937,15 @@ const HomePage = () => {
         <MenuItem onClick={handleDeleteUserFromMenu}>Delete</MenuItem>
       </Menu>
 
+      <Menu
+        anchorEl={allUsersTaskMenuAnchor}
+        open={Boolean(allUsersTaskMenuAnchor)}
+        onClose={handleAllUsersTaskMenuClose}
+      >
+        <MenuItem onClick={handleAllUsersTaskMenuEdit}>Edit</MenuItem>
+        <MenuItem onClick={handleAllUsersTaskMenuDelete}>Delete</MenuItem>
+      </Menu>
+
       <Dialog
         open={editUserDialogOpen}
         onClose={() => {
@@ -887,6 +996,20 @@ const HomePage = () => {
                 }
               />
             </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                select
+                label="Role"
+                value={editingUser?.role || "user"}
+                onChange={(e) =>
+                  setEditingUser((prev) => ({ ...prev, role: e.target.value }))
+                }
+              >
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+              </TextField>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -904,6 +1027,107 @@ const HomePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={deleteUserConfirmOpen}
+        onClose={() => {
+          setDeleteUserConfirmOpen(false);
+          setUserToDelete(null);
+        }}
+      >
+        <DialogTitle>Confirm Delete User</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>?
+          </Typography>
+          <Typography sx={{ mt: 2, color: "error.main", fontSize: "0.9rem" }}>
+            This action will also delete all tasks created by this user.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDeleteUserConfirmOpen(false);
+              setUserToDelete(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteUser}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={descriptionDialogOpen}
+        onClose={() => {
+          setDescriptionDialogOpen(false);
+          setDescriptionTaskSelected(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Task Description</DialogTitle>
+        <DialogContent>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <strong>{descriptionTaskSelected?.taskName}</strong>
+          </Typography>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+            {descriptionTaskSelected?.description || "No description provided"}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setDescriptionDialogOpen(false);
+              setDescriptionTaskSelected(null);
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={adminTaskDeleteConfirmOpen}
+        onClose={() => {
+          setAdminTaskDeleteConfirmOpen(false);
+          setAdminTaskToDelete(null);
+        }}
+      >
+        <DialogTitle>Confirm Delete Task</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{adminTaskToDelete?.taskName}</strong>?
+          </Typography>
+          <Typography sx={{ mt: 2, color: "error.main", fontSize: "0.9rem" }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setAdminTaskDeleteConfirmOpen(false);
+              setAdminTaskToDelete(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmAllUsersTaskDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 };

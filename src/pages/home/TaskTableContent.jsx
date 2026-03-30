@@ -25,7 +25,11 @@ import {
   Select,
   Typography,
   Menu,
+  Link,
+  Tooltip,
 } from "@mui/material";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import { taskService } from "../../api/taskService";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -104,6 +108,13 @@ const getHeadCells = (showAssignedTo) => [
         },
       ]
     : []),
+  {
+    id: "files",
+    disablePadding: false,
+    align: "center",
+    label: "File",
+    width: "120px",
+  },
   {
     id: "actions",
     disablePadding: false,
@@ -269,9 +280,7 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                 const labelId = `enhanced-table-checkbox-${index}`;
                 const assigneeName = row.assigneeName || currentUserName || "Unknown";
                 const assignedToName = row.assignedToName || currentUserName || "Unknown";
-                const isSelfAssigned =
-                  (row.assigneeId ? row.assigneeId === currentUserId : true) &&
-                  (row.createdByUserId ? row.createdByUserId === currentUserId : true);
+                const isSelfAssigned = Number(row.assigneeId) === Number(currentUserId);
 
                 return (
                   <TableRow
@@ -318,7 +327,7 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                           value={row.status || "To-Do"}
                           onChange={(e) => onStatusChange(row.id, e.target.value)}
                           size="small"
-                          disabled={!canEditTask(row)}
+                          // disabled={canChangeStatus ? !canChangeStatus(row) : !canEditTask(row)}
                         >
                           <MenuItem value="To-Do">To-Do</MenuItem>
                           <MenuItem value="In-Progress">In-Progress</MenuItem>
@@ -341,6 +350,38 @@ export default function TaskTableContent({ tasks, onDelete, onStatusChange, onEd
                         {assignedToName}
                       </TableCell>
                     )}
+                    <TableCell align="center" sx={{ width: "120px" }}>
+                      {row.files && row.files.length > 0 ? (
+                        <Tooltip title={`Click to download: ${row.files[0].originalName}`}>
+                          <Link
+                            component="button"
+                            variant="body2"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              taskService.downloadFile(row.files[0].id, row.files[0].originalName);
+                            }}
+                            sx={{
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 0.5,
+                              color: "primary.main",
+                              "&:hover": {
+                                textDecoration: "underline",
+                              },
+                            }}
+                          >
+                            <FileDownloadIcon fontSize="small" />
+                            Download
+                          </Link>
+                        </Tooltip>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                          No file
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell align="center" sx={{ width: "80px" }}>
                       <IconButton
                         size="small"
@@ -434,7 +475,8 @@ TaskTableContent.propTypes = {
   onEdit: PropTypes.func.isRequired,
   canDeleteTask: PropTypes.func.isRequired,
   canEditTask: PropTypes.func.isRequired,
-  currentUserId: PropTypes.string,
+  canChangeStatus: PropTypes.func,
+  currentUserId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   currentUserName: PropTypes.string,
   showAssignedTo: PropTypes.bool,
 };

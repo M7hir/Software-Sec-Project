@@ -18,6 +18,7 @@
     "@mui/x-data-grid": "^8.27.4",
     "@mui/x-date-pickers": "^8.27.2",
     "@reduxjs/toolkit": "^2.11.2",
+    "axios": "^1.14.0",
     "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

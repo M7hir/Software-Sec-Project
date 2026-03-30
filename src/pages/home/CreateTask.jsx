@@ -6,6 +6,8 @@ import {
   DialogTitle,
   Grid,
   Alert,
+  Box,
+  Typography,
 } from "@mui/material";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
@@ -17,34 +19,102 @@ import { v4 as uuidv4 } from "uuid";
 import { useDispatch } from "react-redux";
 import { addTask } from "./taskSlice";
 import { useAuthContext } from "../../hooks/useAuthContext";
+import { userService } from "../../api/userService";
+import { taskService } from "../../api/taskService";
 
 dayjs.extend(isSameOrBefore);
 
 const CreateTask = ({ open, setOpen }) => {
   const [dateError, setDateError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileError, setFileError] = useState("");
   const user = useAuthContext();
   const isAdmin = user.role === "admin";
-  const users = JSON.parse(localStorage.getItem("userData")) || [];
 
+  // // Log user data for debugging
+  // useEffect(() => {
+  //   if (user) {
+  //     console.log("User from Redux:", {
+  //       id: user.id,
+  //       firstName: user.firstName,
+  //       lastName: user.lastName,
+  //       email: user.email,
+  //       role: user.role,
+  //     });
+  //   }
+  // }, [user]);
+
+  // Fetch all users when component mounts or dialog opens
+  useEffect(() => {
+    if (open) {
+      // Build current user data from Redux
+      const currentUserData = {
+        id: user.id,
+        firstName: user.firstName ? String(user.firstName).trim() : "",
+        lastName: user.lastName ? String(user.lastName).trim() : "",
+        email: user.email || "unknown@example.com",
+        role: user.role || "user",
+      };
+
+      if (isAdmin) {
+        // Admin: fetch all users from API
+        const fetchUsers = async () => {
+          setLoadingUsers(true);
+          try {
+            const response = await userService.getUsers(100, 0);
+            let fetchedUsers = response.users || [];
+            
+            // Ensure current user is in the list
+            const userExists = fetchedUsers.some(u => u.id === user.id);
+            if (!userExists) {
+              fetchedUsers.unshift(currentUserData);
+            }
+            
+            setUsers(fetchedUsers);
+          } catch (error) {
+            console.error("Error fetching users:", error);
+            // Fallback to just current user
+            setUsers([currentUserData]);
+          } finally {
+            setLoadingUsers(false);
+          }
+        };
+        fetchUsers();
+      } else {
+        // Non-admin: only show current user
+        setUsers([currentUserData]);
+      }
+    }
+  }, [open, isAdmin, user]);
+
+  // Build user label map from Redux + API data
   const userLabelMap = {};
+  const userIdMap = {}; // Map string IDs to numeric IDs
   users.forEach((item) => {
-    userLabelMap[item.id] = `${item.firstName} ${item.lastName} (${item.email})`;
+    const numericId = Number(item.id);
+    const stringId = String(numericId);
+    const firstName = item.firstName || item.first_name || "";
+    const lastName = item.lastName || item.last_name || "";
+    const displayName = `${firstName} ${lastName}`.trim();
+    const label = displayName ? `${displayName} (${item.email})` : item.email;
+    userLabelMap[stringId] = label;
+    userIdMap[stringId] = numericId;
   });
 
-  if (user.id && !userLabelMap[user.id]) {
-    userLabelMap[user.id] = `${user.firstName} ${user.lastName} (${user.email})`;
-  }
-
-  const userOptions = Object.keys(userLabelMap);
-  const assigneeOptions = isAdmin ? userOptions : [user.id];
-  const assignedToOptions = isAdmin ? userOptions : [user.id];
+  const userOptions = Object.keys(userLabelMap).map(String);
+  
+  // Admin sees all users, non-admin only sees themselves
+  const assigneeOptions = isAdmin ? userOptions : [String(user.id)];
+  const assignedToOptions = isAdmin ? userOptions : [String(user.id)];
   
   const methods = useForm({
     defaultValues: {
       taskName: "",
       description: "",
-      assignee: user.id,
-      assignedTo: user.id,
+      assignee: String(user.id),
+      assignedTo: String(user.id),
       priority: "Medium",
       status: "To-Do",
       startDateTime: dayjs(),
@@ -55,19 +125,19 @@ const CreateTask = ({ open, setOpen }) => {
   const { reset } = methods;
 
   useEffect(() => {
-    if (open) {
+    if (open && users.length > 0) {
       reset({
         taskName: "",
         description: "",
-        assignee: user.id,
-        assignedTo: user.id,
+        assignee: String(user.id),
+        assignedTo: String(user.id),
         priority: "Medium",
         status: "To-Do",
         startDateTime: dayjs(),
         endDateTime: dayjs().add(1, "hour"),
       });
     }
-  }, [open, reset, user.id]);
+  }, [open, users, user.id, reset]);
 
   const dispatch = useDispatch();
 
@@ -76,61 +146,138 @@ const CreateTask = ({ open, setOpen }) => {
       return;
     }
     setDateError(null);
+    setFileError("");
+    setSelectedFile(null);
     setOpen(false);
   };
 
-  const onSubmit = (data) => {
+  const ALLOWED_FILE_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png"];
+  const ALLOWED_FILE_EXTENSIONS = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    if (!ALLOWED_FILE_TYPES.includes(file.type) || !ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
+      setFileError("Invalid file type. Only PDF, DOC, DOCX, JPG, JPEG, and PNG are allowed.");
+      setSelectedFile(null);
+      return;
+    }
+
+    // Check file size (limit to 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError("File size exceeds 5MB limit.");
+      setSelectedFile(null);
+      return;
+    }
+
+    setFileError("");
+    setSelectedFile(file);
+  };
+
+  const onSubmit = async (data) => {
+    // Validate file is selected and has no errors
+    if (!selectedFile) {
+      setFileError("File upload is required");
+      return;
+    }
+
+    if (fileError) {
+      return;
+    }
+
     // Validate end date is greater than start date
     if (dayjs(data.endDateTime).isSameOrBefore(dayjs(data.startDateTime))) {
       setDateError("End date must be greater than start date");
       return;
     }
 
-    console.log("Submitted data:", data);
+    // Helper function to normalize user data
+    const normalizeUser = (apiUser) => ({
+      id: Number(apiUser.id),
+      firstName: apiUser.firstName || apiUser.first_name || "",
+      lastName: apiUser.lastName || apiUser.last_name || "",
+      email: apiUser.email,
+    });
 
-    const selectedAssignee = users.find((item) => item.id === data.assignee) || (data.assignee === user.id
-      ? {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-        }
-      : null);
+    // Find selected users - convert string form data to numeric comparison
+    const numericAssigneeId = Number(data.assignee);
+    const numericAssignedToId = Number(data.assignedTo);
+    
+    const selectedAssignee = users.find((item) => Number(item.id) === numericAssigneeId);
+    const assigneeData = selectedAssignee ? normalizeUser(selectedAssignee) : null;
 
-    const selectedAssignedTo = users.find((item) => item.id === data.assignedTo) || (data.assignedTo === user.id
-      ? {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-        }
-      : null);
+    const selectedAssignedTo = users.find((item) => Number(item.id) === numericAssignedToId);
+    const assignedToData = selectedAssignedTo ? normalizeUser(selectedAssignedTo) : null;
 
-    if (!selectedAssignee || !selectedAssignedTo) {
+    if (!assigneeData || !assignedToData) {
       setDateError("Please select valid users for Assignee and Assigned To");
       return;
     }
 
-    const taskData = {
-      ...data,
-      id: uuidv4(),
-      assigneeId: selectedAssignee.id,
-      assigneeName: `${selectedAssignee.firstName} ${selectedAssignee.lastName}`,
-      assignedToId: selectedAssignedTo.id,
-      assignedToName: `${selectedAssignedTo.firstName} ${selectedAssignedTo.lastName}`,
-      createdByUserId: user.id,
+    // Prepare task data for backend
+    const taskPayload = {
+      taskName: data.taskName,
+      description: data.description,
+      priority: data.priority,
+      status: data.status,
       startDateTime: data.startDateTime.toISOString(),
       endDateTime: data.endDateTime.toISOString(),
+      assigneeId: assigneeData.id,
+      assignedToId: assignedToData.id,
     };
 
-    dispatch(addTask({ userId: selectedAssignee.id, task: { ...taskData } }));
 
-    if (selectedAssignedTo.id !== selectedAssignee.id) {
-      dispatch(addTask({ userId: selectedAssignedTo.id, task: { ...taskData } }));
+
+    try {
+      setDateError(null);
+      
+      // Save task to backend API
+      const apiResponse = await taskService.createTask(taskPayload);
+      const createdTask = apiResponse?.task || apiResponse;
+
+      // Upload file if selected and capture file info from response
+      let uploadedFileInfo = null;
+      if (selectedFile) {
+        try {
+          const fileResponse = await taskService.uploadFile(createdTask.id, selectedFile);
+          uploadedFileInfo = fileResponse?.file;
+        } catch (uploadError) {
+          console.error("File upload error:", uploadError);
+          setFileError("Task created but file upload failed. Please try uploading the file again.");
+        }
+      }
+
+      // Update Redux with backend response
+      const taskData = {
+        ...createdTask,
+        id: createdTask.id || uuidv4(),
+        assigneeName: `${assigneeData.firstName} ${assigneeData.lastName}`,
+        assignedToName: `${assignedToData.firstName} ${assignedToData.lastName}`,
+        createdByUserId: user.id,
+        files: uploadedFileInfo ? [uploadedFileInfo] : []
+      };
+
+      // Store task under assignee's user ID
+      dispatch(addTask({ userId: assigneeData.id, task: { ...taskData } }));
+
+      // Store task under assignedTo's user ID if different
+      if (assignedToData.id !== assigneeData.id) {
+        dispatch(addTask({ userId: assignedToData.id, task: { ...taskData } }));
+      }
+
+      // Store task under current user's ID so they can see it in their task list
+      if (user.id !== assigneeData.id && user.id !== assignedToData.id) {
+        dispatch(addTask({ userId: user.id, task: { ...taskData } }));
+      }
+
+      handleClose();
+    } catch (error) {
+      console.error("Error creating task:", error);
+      setDateError(error.message || "Failed to create task. Please try again.");
     }
-
-    setDateError(null);
-    handleClose();
   };
   return (
     <RHFForm {...methods}>
@@ -242,11 +389,49 @@ const CreateTask = ({ open, setOpen }) => {
                 fullWidth
               />
             </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  Upload File <span style={{ color: "red" }}>*</span>
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ color: "text.secondary", mb: 1 }}>
+                  Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG (Max 5MB) - 1 file per task
+                </Typography>
+              </Box>
+              <input
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                style={{ width: "100%" }}
+                required
+                disabled={!!selectedFile}
+              />
+              {selectedFile && (
+                <Box sx={{ mt: 1, p: 1, backgroundColor: "success.light", borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ color: "success.main", fontWeight: "bold" }}>
+                    ✓ Selected: {selectedFile.name}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => setSelectedFile(null)}
+                    sx={{ mt: 0.5 }}
+                  >
+                    Remove File
+                  </Button>
+                </Box>
+              )}
+              {fileError && (
+                <Typography variant="body2" sx={{ mt: 1, color: "error.main" }}>
+                  {fileError}
+                </Typography>
+              )}
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button type="submit">Create</Button>
+          <Button type="submit" disabled={loadingUsers}>Create</Button>
         </DialogActions>
       </Dialog>
     </RHFForm>

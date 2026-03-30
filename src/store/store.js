@@ -1,45 +1,54 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { 
-  persistStore, 
-  persistReducer,
-  FLUSH,
-  REHYDRATE,
-  PAUSE,
-  PERSIST,
-  PURGE,
-  REGISTER, 
-} from 'redux-persist';
-import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
 import { authReducer } from '../pages/auth/authSlice';
 import { tasksReducer } from '../pages/home/taskSlice';
 
-// 1. Combine your reducers
-const rootReducer = combineReducers({
-  auth: authReducer,
-  tasks : tasksReducer
-});
+const loadState = () => {
+  if (typeof window === 'undefined') return undefined;
 
-// 2. Create the persist configuration
-const persistConfig = {
-  key: 'auth-storage',
-  storage,
-  // whitelist: ['auth'] // Only persist the 'auth' slice (optional)
-  // blacklist: ['ui']   // Don't persist 'ui' slice (optional)
+  try {
+    const authState = sessionStorage.getItem('authState');
+    const tasksState = sessionStorage.getItem('tasksState');
+
+    return {
+      auth: authState ? JSON.parse(authState) : undefined,
+      tasks: tasksState ? JSON.parse(tasksState) : undefined,
+    };
+  } catch (error) {
+    console.error('Failed to load persisted state:', error);
+    return undefined;
+  }
 };
 
-// 3. Create the persisted reducer
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const saveState = (state) => {
+  if (typeof window === 'undefined') return;
 
-// 4. Configure the store
+  try {
+    sessionStorage.setItem('authState', JSON.stringify(state.auth));
+    sessionStorage.setItem('tasksState', JSON.stringify(state.tasks));
+  } catch (error) {
+    console.error('Failed to save persisted state:', error);
+  }
+};
+
+// 1. Combine reducers
+const rootReducer = combineReducers({
+  auth: authReducer,
+  tasks: tasksReducer,
+});
+
+const preloadedState = loadState();
+
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: rootReducer,
+  preloadedState,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore redux-persist actions to avoid console warnings
-        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+        ignoredActionSerializableCheck: ['payload'],
       },
     }),
 });
 
-export const persistor = persistStore(store);
+store.subscribe(() => {
+  saveState(store.getState());
+});

@@ -1,32 +1,34 @@
-import {
-  Button,
-  Grid,
-  Link,
-  Typography,
-  Snackbar,
-  Alert,
-} from "@mui/material";
+import { Button, Grid, Typography, Snackbar, Alert } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { FormProvider as RHFForm } from "react-hook-form";
 import { Field } from "../../Components/Fields";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { SignUpSchema } from "./authValidationSchemas";
+import { z } from "zod";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AuthBodyWrapper from "./AuthBodyWrapper";
 import authService from "../../api/authService";
 
-const signUpDefaultValues = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  password: "",
+// Validation schema for reset password
+const ResetPasswordSchema = z
+  .object({
+    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+const resetPasswordDefaultValues = {
+  newPassword: "",
+  confirmPassword: "",
 };
 
-function SignUp() {
+function ResetPassword() {
   const methods = useForm({
-    defaultValues: signUpDefaultValues,
-    resolver: zodResolver(SignUpSchema),
+    defaultValues: resetPasswordDefaultValues,
+    resolver: zodResolver(ResetPasswordSchema),
   });
   const router = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,18 @@ function SignUp() {
   const [openError, setOpenError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Check for reset token on component mount
+  useEffect(() => {
+    const token = sessionStorage.getItem("resetToken");
+    if (!token) {
+      setErrorMessage("No reset token found. Please use forgot password first.");
+      setOpenError(true);
+      setTimeout(() => {
+        router("/auth/forgot-password");
+      }, 2000);
+    }
+  }, [router]);
 
   const handleClose = (event, reason) => {
     if (reason === "clickaway") {
@@ -49,17 +63,19 @@ function SignUp() {
     setSuccessMessage("");
 
     try {
-      // Call backend API to signup
-      const response = await authService.signup({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        password: data.password,
-      });
+      const token = sessionStorage.getItem("resetToken");
+      if (!token) {
+        throw new Error("No reset token provided");
+      }
 
-      // Success - show message
-      setSuccessMessage(response.message || "Account created! Please check your email to verify.");
+      // Call backend API to reset password
+      const response = await authService.resetPassword(token, data.newPassword);
+
+      setSuccessMessage(response.message || "Password reset successfully!");
       setOpenSuccess(true);
+
+      // Clear reset token from sessionStorage
+      sessionStorage.removeItem("resetToken");
 
       // Clear form
       methods.reset();
@@ -69,8 +85,9 @@ function SignUp() {
         router("/auth");
       }, 2000);
     } catch (error) {
-      console.error("Signup error:", error);
-      setErrorMessage(error.message || "Signup failed. Please try again.");
+      console.error("Reset password error:", error);
+      const errorMsg = error?.message || error || "Failed to reset password. Token may be expired.";
+      setErrorMessage(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
       setOpenError(true);
     } finally {
       setLoading(false);
@@ -78,41 +95,28 @@ function SignUp() {
   };
 
   return (
-    <AuthBodyWrapper title="Signup">
+    <AuthBodyWrapper title="Reset Password">
       <RHFForm {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Field.TextField
-                name="firstName"
-                label="First name"
-                fullWidth
-                required
-                disabled={loading}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Field.TextField
-                name="lastName"
-                label="Last name"
-                fullWidth
-                required
-                disabled={loading}
-              />
+            <Grid item xs={12} width="100%">
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Enter your new password below.
+              </Typography>
             </Grid>
             <Grid item xs={12} width="100%">
-              <Field.TextField 
-                name="email" 
-                label="Email" 
-                fullWidth 
-                required 
+              <Field.PasswordField
+                name="newPassword"
+                label="New Password"
+                fullWidth
+                required
                 disabled={loading}
               />
             </Grid>
             <Grid item xs={12} width="100%">
               <Field.PasswordField
-                name="password"
-                label="Password"
+                name="confirmPassword"
+                label="Confirm Password"
                 fullWidth
                 required
                 disabled={loading}
@@ -125,19 +129,8 @@ function SignUp() {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? "Signing up..." : "Sign Up"}
+                {loading ? "Resetting..." : "Reset Password"}
               </Button>
-            </Grid>
-            <Grid item xs={12} width="100%">
-              <Typography>
-                Already have an account?{" "}
-                <Link
-                  onClick={() => !loading && router("/auth")}
-                  sx={{ cursor: loading ? "default" : "pointer" }}
-                >
-                  Log in
-                </Link>
-              </Typography>
             </Grid>
           </Grid>
         </form>
@@ -158,14 +151,6 @@ function SignUp() {
       </Snackbar>
     </AuthBodyWrapper>
   );
-            <Grid item xs={12} sm={6}>
-              <Field.TextField
-                name="lastName"
-                label="Last name"
-                fullWidth
-                required
-              />
-            </Grid>
 }
 
-export default SignUp;
+export default ResetPassword;

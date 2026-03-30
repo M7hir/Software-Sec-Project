@@ -2,9 +2,8 @@ import { useSelector } from "react-redux";
 
 export const useAuth = () => {
   const user = useSelector((state) => state.auth);
-  const isAuthenticated = localStorage.getItem("AuthToken")
-    ? localStorage.getItem("AuthToken") === "Authenticated"
-    : false;
+  // Use Redux isLoggedIn flag as the authentication source
+  const isAuthenticated = user?.isLoggedIn || false;
 
   const firstName = user?.firstName ?? "";
   const lastName = user?.lastName ?? "";
