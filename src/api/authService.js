@@ -89,7 +89,9 @@ export const authService = {
     try {
       await apiClient.post("/auth/logout");
     } catch (error) {
-      console.error("Logout error:", error);
+      if (import.meta.env.DEV) {
+        console.error("Logout error:", error);
+      }
     } finally {
       // Clear tokens locally regardless of API response
       clearTokens();

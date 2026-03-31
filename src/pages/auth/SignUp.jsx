@@ -158,14 +158,6 @@ function SignUp() {
       </Snackbar>
     </AuthBodyWrapper>
   );
-            <Grid item xs={12} sm={6}>
-              <Field.TextField
-                name="lastName"
-                label="Last name"
-                fullWidth
-                required
-              />
-            </Grid>
 }
 
 export default SignUp;

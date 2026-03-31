@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useRoutes } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import routes from "./routes/routes";
-import { initializeTokens, restoreAuthState } from "./api/apiClient";
+import { initializeTokens, restoreAuthState, initializeCsrfToken } from "./api/apiClient";
 import { login } from "./pages/auth/authSlice";
 import { setTasks } from "./pages/home/taskSlice";
 import { taskService } from "./api/taskService";
@@ -14,6 +14,13 @@ function App() {
   useEffect(() => {
     // Initialize tokens from sessionStorage on app startup
     initializeTokens();
+
+    // Initialize CSRF token (fetch if not cached)
+    initializeCsrfToken().catch((error) => {
+      if (import.meta.env.DEV) {
+        console.error("Failed to initialize CSRF token:", error);
+      }
+    });
 
     // Restore auth state from sessionStorage if available
     const savedAuthState = restoreAuthState();

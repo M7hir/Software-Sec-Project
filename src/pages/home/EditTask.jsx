@@ -19,19 +19,20 @@ import { useDispatch } from "react-redux";
 import { editTask } from "./taskSlice";
 import { useAuthContext } from "../../hooks/useAuthContext";
 import { taskService } from "../../api/taskService";
-import { userService } from "../../api/userService";
+import { useTaskAssignableUsers } from "./useTaskAssignableUsers";
+import { getSelectedTaskUsers, validateTaskFile } from "./taskFormUtils";
 
 dayjs.extend(isSameOrBefore);
 
 const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
   const [dateError, setDateError] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState("");
 
   const dispatch = useDispatch();
   const user = useAuthContext();
+  const { users, loadingUsers, userLabelMap, assigneeOptions, assignedToOptions } =
+    useTaskAssignableUsers({ open, user, enabled: Boolean(task && user?.id) });
 
   const methods = useForm({
     defaultValues: {
@@ -48,51 +49,6 @@ const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
   });
   const { reset } = methods;
 
-  // Fetch all users when component mounts or dialog opens
-  useEffect(() => {
-    if (open && task && user?.id) {
-      const isAdmin = user.role === "admin";
-      
-      // Build current user data from Redux
-      const currentUserData = {
-        id: user.id,
-        firstName: user.firstName ? String(user.firstName).trim() : "",
-        lastName: user.lastName ? String(user.lastName).trim() : "",
-        email: user.email || "unknown@example.com",
-        role: user.role || "user",
-      };
-
-      if (isAdmin) {
-        // Admin: fetch all users from API
-        const fetchUsers = async () => {
-          setLoadingUsers(true);
-          try {
-            const response = await userService.getUsers(100, 0);
-            let fetchedUsers = response.users || [];
-
-            // Ensure current user is in the list
-            const userExists = fetchedUsers.some(u => u.id === user.id);
-            if (!userExists) {
-              fetchedUsers.unshift(currentUserData);
-            }
-
-            setUsers(fetchedUsers);
-          } catch (error) {
-            console.error("Error fetching users:", error);
-            // Fallback to just current user
-            setUsers([currentUserData]);
-          } finally {
-            setLoadingUsers(false);
-          }
-        };
-        fetchUsers();
-      } else {
-        // Non-admin: only show current user
-        setUsers([currentUserData]);
-      }
-    }
-  }, [open, task, user?.email, user?.firstName, user?.id, user?.lastName, user?.role]);
-
   useEffect(() => {
     if (open && task && users.length > 0) {
       reset({
@@ -108,26 +64,6 @@ const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
     }
   }, [open, task, users, user?.id, reset]);
 
-  // Build user label map from Redux + API data
-  const userLabelMap = {};
-  const userIdMap = {}; // Map string IDs to numeric IDs
-  users.forEach((item) => {
-    const numericId = Number(item.id);
-    const stringId = String(numericId);
-    const firstName = item.firstName || item.first_name || "";
-    const lastName = item.lastName || item.last_name || "";
-    const displayName = `${firstName} ${lastName}`.trim();
-    const label = displayName ? `${displayName} (${item.email})` : item.email;
-    userLabelMap[stringId] = label;
-    userIdMap[stringId] = numericId;
-  });
-
-  const userOptions = Object.keys(userLabelMap).map(String);
-  // Admin sees all users, non-admin only sees themselves
-  const isAdmin = user?.role === "admin";
-  const assigneeOptions = isAdmin ? userOptions : (user?.id ? [String(user.id)] : []);
-  const assignedToOptions = isAdmin ? userOptions : (user?.id ? [String(user.id)] : []);
-
   const handleClose = (_, reason) => {
     if (reason === "backdropClick") {
       return;
@@ -138,24 +74,13 @@ const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
     setSelectedFile(null);
   };
 
-  const ALLOWED_FILE_TYPES = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png"];
-  const ALLOWED_FILE_EXTENSIONS = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"];
-
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check file type
-    const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
-    if (!ALLOWED_FILE_TYPES.includes(file.type) || !ALLOWED_FILE_EXTENSIONS.includes(fileExtension)) {
-      setFileError("Invalid file type. Only PDF, DOC, DOCX, JPG, JPEG, and PNG are allowed.");
-      setSelectedFile(null);
-      return;
-    }
-
-    // Check file size (limit to 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError("File size exceeds 5MB limit.");
+    const validationError = validateTaskFile(file);
+    if (validationError) {
+      setFileError(validationError);
       setSelectedFile(null);
       return;
     }
@@ -171,23 +96,11 @@ const EditTask = ({ open, setOpen, task, onSubmitTask }) => {
       return;
     }
 
-    // Helper function to normalize user data
-    const normalizeUser = (apiUser) => ({
-      id: Number(apiUser.id),
-      firstName: apiUser.firstName || apiUser.first_name || "",
-      lastName: apiUser.lastName || apiUser.last_name || "",
-      email: apiUser.email,
-    });
-
-    // Find selected users - convert string form data to numeric comparison
-    const numericAssigneeId = Number(data.assignee);
-    const numericAssignedToId = Number(data.assignedTo);
-    
-    const selectedAssignee = users.find((item) => Number(item.id) === numericAssigneeId);
-    const assigneeData = selectedAssignee ? normalizeUser(selectedAssignee) : null;
-
-    const selectedAssignedTo = users.find((item) => Number(item.id) === numericAssignedToId);
-    const assignedToData = selectedAssignedTo ? normalizeUser(selectedAssignedTo) : null;
+    const { assigneeData, assignedToData } = getSelectedTaskUsers(
+      users,
+      data.assignee,
+      data.assignedTo,
+    );
 
     if (!assigneeData || !assignedToData) {
       setDateError("Please select valid users for Assignee and Assigned To");
