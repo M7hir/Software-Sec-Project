@@ -5,9 +5,10 @@ import { useAuthContext } from "../../hooks/useAuthContext";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { Typography, Card, CardContent, Chip } from "@mui/material";
+import { Typography, Card, CardContent, Chip, Snackbar, Alert } from "@mui/material";
 import TaskTableContent from "./TaskTableContent";
 import { EditTask } from "./EditTask";
+import { taskService } from "../../api/taskService";
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -31,6 +32,8 @@ export default function TaskTable() {
   const [tabValue, setTabValue] = React.useState(0);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
   const [taskToEdit, setTaskToEdit] = React.useState(null);
+  const [statusError, setStatusError] = React.useState("");
+  const [openStatusError, setOpenStatusError] = React.useState(false);
 
   const taskState = useSelector((state) => state.tasks);
   const allTasks = React.useMemo(() => {
@@ -84,9 +87,36 @@ export default function TaskTable() {
 
   const handleStatusChange = (taskId, newStatus) => {
     const task = allTasks.find((t) => t.id === taskId);
-    // if (task && canChangeStatus(task)) {
-      dispatch(editTask({ userId: user.id, task: { ...task, status: newStatus } }));
-    // }
+    if (!task) return;
+
+    // Optimistically update Redux
+    dispatch(editTask({ userId: user.id, task: { ...task, status: newStatus } }));
+
+    // Persist to backend
+    taskService
+      .updateTask(taskId, {
+        taskName: task.taskName,
+        description: task.description,
+        priority: task.priority,
+        status: newStatus,
+        startDateTime: task.startDateTime,
+        endDateTime: task.endDateTime,
+        assigneeId: task.assigneeId,
+        assignedToId: task.assignedToId,
+      })
+      .catch((error) => {
+        // Revert Redux state on error
+        dispatch(editTask({ userId: user.id, task: task }));
+        setStatusError(error.message || "Failed to update task status");
+        setOpenStatusError(true);
+      });
+  };
+
+  const handleCloseStatusError = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setOpenStatusError(false);
   };
 
   const handleEditClick = (task) => {
@@ -253,6 +283,17 @@ export default function TaskTable() {
       </TabPanel>
 
       <EditTask open={editDialogOpen} setOpen={setEditDialogOpen} task={taskToEdit} />
+
+      <Snackbar open={openStatusError} autoHideDuration={6000} onClose={handleCloseStatusError}>
+        <Alert
+          onClose={handleCloseStatusError}
+          severity="error"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {statusError}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

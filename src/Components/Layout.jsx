@@ -27,10 +27,12 @@ import {
   AdminPanelSettings as AdminIcon,
 } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { logout } from "../pages/auth/authSlice";
 
 const Layout = ({ children, onAdminToggle, currentAdminPage = "management" }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -55,8 +57,10 @@ const Layout = ({ children, onAdminToggle, currentAdminPage = "management" }) =>
 
   const handleAdminToggle = () => {
     const newPage = currentAdminPage === "management" ? "tasks" : "management";
-    if (onAdminToggle) {
-      onAdminToggle(newPage);
+    if (newPage === "management") {
+      navigate("/");
+    } else {
+      navigate("/admin/tasks");
     }
     handleUserMenuClose();
   };

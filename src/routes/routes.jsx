@@ -1,6 +1,6 @@
 import AuthRoutes from "../pages/auth/routes";
 import ProtectedRoute from "./ProtectedRoute";
-import { HomePage } from "../pages/home";
+import { HomePage, AdminTasksPage } from "../pages/home";
 import { Navigate } from "react-router-dom";
 
 const routes = [
@@ -9,6 +9,14 @@ const routes = [
     element: (
       <ProtectedRoute>
         <HomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/tasks",
+    element: (
+      <ProtectedRoute>
+        <AdminTasksPage />
       </ProtectedRoute>
     ),
   },
