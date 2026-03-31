@@ -1,11 +1,6 @@
 import {
-  AppBar,
-  Avatar,
   Box,
   Button,
-  Drawer,
-  IconButton,
-  Toolbar,
   Typography,
 } from "@mui/material";
 import React from "react";
@@ -20,6 +15,7 @@ import { userService } from "../../api/userService";
 import dayjs from "dayjs";
 import { AdminManagementSection, AdminTasksSection } from "./HomePageSections";
 import HomePageDialogs from "./HomePageDialogs";
+import Layout from "../../Components/Layout";
 
 const HomePage = () => {
   const dispatch = useDispatch();
@@ -439,121 +435,93 @@ const HomePage = () => {
   };
 
   return (
-    <Box sx={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <AppBar position="fixed">
-        <Toolbar
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            alignItems: "center",
-          }}
-        >
-          <Box>
-            <Button onClick={handleClickOpen} variant="contained" color="secondary">
-              Create task
-            </Button>
-          </Box>
-
-          <Typography variant="h6" component="div" textAlign="center">
-            Hermes
+    <Layout onAdminToggle={setAdminPage} currentAdminPage={adminPage}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: "primary.dark" }}>
+            Welcome, {fullName}
           </Typography>
-
-          <Box sx={{ justifySelf: "end" }}>
-            <IconButton onClick={() => setIsProfileDrawerOpen(true)} sx={{ p: 0 }}>
-              <Avatar>{getInitials()}</Avatar>
-            </IconButton>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      <Toolbar />
-
-      <Drawer
-        anchor="right"
-        open={isProfileDrawerOpen}
-        onClose={() => setIsProfileDrawerOpen(false)}
-      >
-        <Box
+          <Typography variant="subtitle1" sx={{ color: "text.secondary" }}>
+            Manage your tasks efficiently
+          </Typography>
+        </Box>
+        <Button 
+          onClick={handleClickOpen} 
+          variant="contained" 
+          color="primary"
+          size="large"
           sx={{
-            width: 300,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            p: 3,
+            py: 1.2,
+            px: 3,
+            fontSize: "1rem",
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #1a73e8 0%, #1565c0 100%)",
+            boxShadow: "0 4px 12px rgba(26, 115, 232, 0.4)",
+            "&:hover": {
+              boxShadow: "0 6px 20px rgba(26, 115, 232, 0.6)",
+              transform: "translateY(-2px)",
+            },
           }}
         >
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-            <Avatar sx={{ width: 72, height: 72, fontSize: 26 }}>{getInitials()}</Avatar>
-            <Typography variant="h6" textAlign="center">
-              {fullName || "User"}
-            </Typography>
-          </Box>
+          + Create Task
+        </Button>
+      </Box>
 
-          <Box sx={{ mt: "auto" }}>
-            {isAdmin && (
-              <Button
-                onClick={adminPage === "management" ? goToAdminTasksPage : goToAdminManagementPage}
-                variant="outlined"
-                fullWidth
-                sx={{ mb: 1.5 }}
-              >
-                {adminPage === "management" ? "Admin Tasks" : "User Management"}
-              </Button>
-            )}
-            <Button onClick={handleLogout} variant="contained" color="error" fullWidth>
-              Log out
-            </Button>
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {!isAdmin && (
+          <Box>
+            <TaskTable />
           </Box>
-        </Box>
-      </Drawer>
-
-      <Box sx={{ p: 2, flex: 1, overflowY: "auto" }}>
-        {!isAdmin && <TaskTable />}
+        )}
 
         {isAdmin && adminPage === "management" && (
-          <AdminManagementSection
-            adminManagementTab={adminManagementTab}
-            setAdminManagementTab={setAdminManagementTab}
-            allUsersTaskSortBy={allUsersTaskSortBy}
-            allUsersTaskSortOrder={allUsersTaskSortOrder}
-            handleAllUsersTaskSort={handleAllUsersTaskSort}
-            allUsersTasks={allUsersTasks}
-            paginatedAllUsersTasks={paginatedAllUsersTasks}
-            taskOwnerMap={taskOwnerMap}
-            setDescriptionTaskSelected={setDescriptionTaskSelected}
-            setDescriptionDialogOpen={setDescriptionDialogOpen}
-            handleAllUsersTaskMenuOpen={handleAllUsersTaskMenuOpen}
-            allUsersTaskRowsPerPage={allUsersTaskRowsPerPage}
-            allUsersTaskPage={allUsersTaskPage}
-            setAllUsersTaskPage={setAllUsersTaskPage}
-            setAllUsersTaskRowsPerPage={setAllUsersTaskRowsPerPage}
-            usersError={usersError}
-            setAddUserDialogOpen={setAddUserDialogOpen}
-            usersSortOrder={usersSortOrder}
-            handleUsersSort={handleUsersSort}
-            paginatedUsers={paginatedUsers}
-            currentUser={currentUser}
-            handleUserMenuOpen={handleUserMenuOpen}
-            usersLength={users.length}
-            usersRowsPerPage={usersRowsPerPage}
-            usersPage={usersPage}
-            setUsersPage={setUsersPage}
-            setUsersRowsPerPage={setUsersRowsPerPage}
-          />
+          <Box>
+            <AdminManagementSection
+              adminManagementTab={adminManagementTab}
+              setAdminManagementTab={setAdminManagementTab}
+              allUsersTaskSortBy={allUsersTaskSortBy}
+              allUsersTaskSortOrder={allUsersTaskSortOrder}
+              handleAllUsersTaskSort={handleAllUsersTaskSort}
+              allUsersTasks={allUsersTasks}
+              paginatedAllUsersTasks={paginatedAllUsersTasks}
+              taskOwnerMap={taskOwnerMap}
+              setDescriptionTaskSelected={setDescriptionTaskSelected}
+              setDescriptionDialogOpen={setDescriptionDialogOpen}
+              handleAllUsersTaskMenuOpen={handleAllUsersTaskMenuOpen}
+              allUsersTaskRowsPerPage={allUsersTaskRowsPerPage}
+              allUsersTaskPage={allUsersTaskPage}
+              setAllUsersTaskPage={setAllUsersTaskPage}
+              setAllUsersTaskRowsPerPage={setAllUsersTaskRowsPerPage}
+              usersError={usersError}
+              setAddUserDialogOpen={setAddUserDialogOpen}
+              usersSortOrder={usersSortOrder}
+              handleUsersSort={handleUsersSort}
+              paginatedUsers={paginatedUsers}
+              currentUser={currentUser}
+              handleUserMenuOpen={handleUserMenuOpen}
+              usersLength={users.length}
+              usersRowsPerPage={usersRowsPerPage}
+              usersPage={usersPage}
+              setUsersPage={setUsersPage}
+              setUsersRowsPerPage={setUsersRowsPerPage}
+            />
+          </Box>
         )}
 
         {isAdmin && adminPage === "tasks" && (
-          <AdminTasksSection
-            adminTaskTab={adminTaskTab}
-            setAdminTaskTab={setAdminTaskTab}
-            adminTodoTasks={adminTodoTasks}
-            adminInProgressTasks={adminInProgressTasks}
-            adminCompletedTasks={adminCompletedTasks}
-            handleAdminTaskDelete={handleAdminTaskDelete}
-            handleAdminTaskStatusChange={handleAdminTaskStatusChange}
-            handleAdminTaskEditOpen={handleAdminTaskEditOpen}
-            currentUser={currentUser}
-          />
+          <Box>
+            <AdminTasksSection
+              adminTaskTab={adminTaskTab}
+              setAdminTaskTab={setAdminTaskTab}
+              adminTodoTasks={adminTodoTasks}
+              adminInProgressTasks={adminInProgressTasks}
+              adminCompletedTasks={adminCompletedTasks}
+              handleAdminTaskDelete={handleAdminTaskDelete}
+              handleAdminTaskStatusChange={handleAdminTaskStatusChange}
+              handleAdminTaskEditOpen={handleAdminTaskEditOpen}
+              currentUser={currentUser}
+            />
+          </Box>
         )}
       </Box>
 
@@ -604,9 +572,9 @@ const HomePage = () => {
         adminTaskToDelete={adminTaskToDelete}
         handleConfirmAllUsersTaskDelete={handleConfirmAllUsersTaskDelete}
       />
-
-    </Box>
+    </Layout>
   );
 };
 
 export { HomePage };
+export default HomePage;

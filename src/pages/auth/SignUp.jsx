@@ -5,6 +5,9 @@ import {
   Typography,
   Snackbar,
   Alert,
+  Box,
+  CircularProgress,
+  Divider,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { FormProvider as RHFForm } from "react-hook-form";
@@ -78,35 +81,38 @@ function SignUp() {
   };
 
   return (
-    <AuthBodyWrapper title="Signup">
+    <AuthBodyWrapper title="Create Account">
       <RHFForm {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)}>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
               <Field.TextField
                 name="firstName"
-                label="First name"
+                label="First Name"
                 fullWidth
                 required
                 disabled={loading}
+                placeholder="John"
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <Field.TextField
                 name="lastName"
-                label="Last name"
+                label="Last Name"
                 fullWidth
                 required
                 disabled={loading}
+                placeholder="Doe"
               />
             </Grid>
             <Grid item xs={12} width="100%">
               <Field.TextField 
                 name="email" 
-                label="Email" 
+                label="Email Address" 
                 fullWidth 
                 required 
                 disabled={loading}
+                placeholder="john.doe@example.com"
               />
             </Grid>
             <Grid item xs={12} width="100%">
@@ -116,6 +122,7 @@ function SignUp() {
                 fullWidth
                 required
                 disabled={loading}
+                placeholder="Create a strong password"
               />
             </Grid>
             <Grid item xs={12} width="100%">
@@ -124,18 +131,52 @@ function SignUp() {
                 variant="contained" 
                 type="submit"
                 disabled={loading}
+                size="large"
+                sx={{
+                  py: 1.5,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #1a73e8 0%, #1565c0 100%)",
+                  boxShadow: "0 4px 12px rgba(26, 115, 232, 0.4)",
+                  "&:hover": {
+                    boxShadow: "0 6px 20px rgba(26, 115, 232, 0.6)",
+                  },
+                }}
               >
-                {loading ? "Signing up..." : "Sign Up"}
+                {loading ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircularProgress size={20} color="inherit" />
+                    Creating Account...
+                  </Box>
+                ) : (
+                  "Create Account"
+                )}
               </Button>
             </Grid>
+
             <Grid item xs={12} width="100%">
-              <Typography>
-                Already have an account?{" "}
+              <Divider sx={{ my: 1 }}>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  Already have an account?
+                </Typography>
+              </Divider>
+            </Grid>
+
+            <Grid item xs={12} width="100%">
+              <Typography sx={{ textAlign: "center" }}>
                 <Link
                   onClick={() => !loading && router("/auth")}
-                  sx={{ cursor: loading ? "default" : "pointer" }}
+                  sx={{ 
+                    cursor: loading ? "default" : "pointer",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    color: "#1a73e8",
+                    "&:hover": {
+                      textDecoration: "underline",
+                    }
+                  }}
                 >
-                  Log in
+                  Sign in to your account
                 </Link>
               </Typography>
             </Grid>

@@ -5,7 +5,7 @@ import { useAuthContext } from "../../hooks/useAuthContext";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { Typography } from "@mui/material";
+import { Typography, Card, CardContent, Chip } from "@mui/material";
 import TaskTableContent from "./TaskTableContent";
 import { EditTask } from "./EditTask";
 
@@ -20,7 +20,7 @@ function TabPanel(props) {
       aria-labelledby={`tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
     </div>
   );
 }
@@ -100,35 +100,102 @@ export default function TaskTable() {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="task status tabs"
-        >
-          <Tab
-            label={`To-Do (${todoTasks.length})`}
-            id="tab-0"
-            aria-controls="tabpanel-0"
-          />
-          <Tab
-            label={`In-Progress (${inProgressTasks.length})`}
-            id="tab-1"
-            aria-controls="tabpanel-1"
-          />
-          <Tab
-            label={`Completed (${completedTasks.length})`}
-            id="tab-2"
-            aria-controls="tabpanel-2"
-          />
-        </Tabs>
-      </Box>
+      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+        <CardContent sx={{ pb: 1 }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="task status tabs"
+            sx={{
+              "& .MuiTabs-indicator": {
+                background: "linear-gradient(135deg, #1a73e8 0%, #1565c0 100%)",
+                height: 3,
+              },
+            }}
+          >
+            <Tab
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography sx={{ fontWeight: 600 }}>To-Do</Typography>
+                  <Chip 
+                    label={todoTasks.length} 
+                    size="small"
+                    sx={{
+                      background: "linear-gradient(135deg, #ff6b6b 0%, #f06a3c 100%)",
+                      color: "white",
+                      fontWeight: 700,
+                    }}
+                  />
+                </Box>
+              }
+              id="tab-0"
+              aria-controls="tabpanel-0"
+              sx={{
+                fontWeight: 600,
+                "&.Mui-selected": {
+                  color: "#1a73e8",
+                },
+              }}
+            />
+            <Tab
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography sx={{ fontWeight: 600 }}>In Progress</Typography>
+                  <Chip 
+                    label={inProgressTasks.length} 
+                    size="small"
+                    sx={{
+                      background: "linear-gradient(135deg, #ffa500 0%, #ff8c42 100%)",
+                      color: "white",
+                      fontWeight: 700,
+                    }}
+                  />
+                </Box>
+              }
+              id="tab-1"
+              aria-controls="tabpanel-1"
+              sx={{
+                fontWeight: 600,
+                "&.Mui-selected": {
+                  color: "#1a73e8",
+                },
+              }}
+            />
+            <Tab
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography sx={{ fontWeight: 600 }}>Completed</Typography>
+                  <Chip 
+                    label={completedTasks.length} 
+                    size="small"
+                    sx={{
+                      background: "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
+                      color: "white",
+                      fontWeight: 700,
+                    }}
+                  />
+                </Box>
+              }
+              id="tab-2"
+              aria-controls="tabpanel-2"
+              sx={{
+                fontWeight: 600,
+                "&.Mui-selected": {
+                  color: "#1a73e8",
+                },
+              }}
+            />
+          </Tabs>
+        </CardContent>
+      </Card>
 
       <TabPanel value={tabValue} index={0}>
         {todoTasks.length === 0 ? (
-          <Typography variant="body1" color="textSecondary">
-            No To-Do tasks yet. Create one to get started!
-          </Typography>
+          <Card sx={{ p: 4, textAlign: "center", borderRadius: 3 }}>
+            <Typography variant="body1" color="textSecondary" sx={{ fontSize: "1.1rem" }}>
+              📝 No To-Do tasks yet. Create one to get started!
+            </Typography>
+          </Card>
         ) : (
           <TaskTableContent
             tasks={todoTasks}
@@ -145,9 +212,11 @@ export default function TaskTable() {
 
       <TabPanel value={tabValue} index={1}>
         {inProgressTasks.length === 0 ? (
-          <Typography variant="body1" color="textSecondary">
-            No tasks in progress. Move a task here to get started!
-          </Typography>
+          <Card sx={{ p: 4, textAlign: "center", borderRadius: 3 }}>
+            <Typography variant="body1" color="textSecondary" sx={{ fontSize: "1.1rem" }}>
+              ⚙️ No tasks in progress. Move a task here to get started!
+            </Typography>
+          </Card>
         ) : (
           <TaskTableContent
             tasks={inProgressTasks}
@@ -164,9 +233,11 @@ export default function TaskTable() {
 
       <TabPanel value={tabValue} index={2}>
         {completedTasks.length === 0 ? (
-          <Typography variant="body1" color="textSecondary">
-            No completed tasks yet. Complete a task to see it here!
-          </Typography>
+          <Card sx={{ p: 4, textAlign: "center", borderRadius: 3 }}>
+            <Typography variant="body1" color="textSecondary" sx={{ fontSize: "1.1rem" }}>
+              ✅ No completed tasks yet. Complete a task to see it here!
+            </Typography>
+          </Card>
         ) : (
           <TaskTableContent
             tasks={completedTasks}

@@ -15,6 +15,8 @@ import {
   TableSortLabel,
   Tabs,
   Typography,
+  Link,
+  Tooltip,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -169,17 +171,32 @@ export function AdminManagementSection({
                       </TableCell>
                       <TableCell>
                         {task.files && task.files.length > 0 ? (
-                          <Button
-                            size="small"
-                            startIcon={<FileDownloadIcon />}
-                            onClick={() =>
-                              taskService.downloadFile(task.files[0].id, task.files[0].originalName)
-                            }
-                          >
-                            Download
-                          </Button>
+                          <Tooltip title={`Click to download: ${task.files[0].originalName}`}>
+                            <Link
+                              component="button"
+                              variant="body2"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                taskService.downloadFile(task.files[0].id, task.files[0].originalName);
+                              }}
+                              sx={{
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "flex-start",
+                                gap: 0.5,
+                                color: "primary.main",
+                                "&:hover": {
+                                  textDecoration: "underline",
+                                },
+                              }}
+                            >
+                              <FileDownloadIcon fontSize="small" />
+                              Download
+                            </Link>
+                          </Tooltip>
                         ) : (
-                          <Typography variant="body2" color="textSecondary">
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
                             No file
                           </Typography>
                         )}

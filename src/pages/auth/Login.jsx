@@ -1,4 +1,4 @@
-import { Button, Grid, Typography, Link, Snackbar, Alert } from "@mui/material";
+import { Button, Grid, Typography, Link, Snackbar, Alert, Box, CircularProgress, Divider } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { FormProvider as RHFForm } from "react-hook-form";
 import { Field } from "../../Components/Fields";
@@ -91,9 +91,16 @@ function Login() {
     <AuthBodyWrapper title="Login">
       <RHFForm {...methods}>
         <form onSubmit={methods.handleSubmit(onSubmit)}>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             <Grid item xs={12} width="100%">
-              <Field.TextField name="email" label="Email" fullWidth required disabled={loading} />
+              <Field.TextField 
+                name="email" 
+                label="Email Address" 
+                fullWidth 
+                required 
+                disabled={loading}
+                placeholder="Enter your email"
+              />
             </Grid>
             <Grid item xs={12} width="100%">
               <Field.PasswordField
@@ -102,31 +109,81 @@ function Login() {
                 fullWidth
                 required
                 disabled={loading}
+                placeholder="Enter your password"
               />
             </Grid>
             <Grid item xs={12} width="100%">
-              <Button fullWidth variant="contained" type="submit" disabled={loading}>
-                {loading ? "Logging in..." : "Login"}
+              <Button 
+                fullWidth 
+                variant="contained" 
+                type="submit" 
+                disabled={loading}
+                size="large"
+                sx={{
+                  py: 1.5,
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #1a73e8 0%, #1565c0 100%)",
+                  boxShadow: "0 4px 12px rgba(26, 115, 232, 0.4)",
+                  "&:hover": {
+                    boxShadow: "0 6px 20px rgba(26, 115, 232, 0.6)",
+                  },
+                }}
+              >
+                {loading ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircularProgress size={20} color="inherit" />
+                    Logging in...
+                  </Box>
+                ) : (
+                  "Login"
+                )}
               </Button>
             </Grid>
+
             <Grid item xs={12} width="100%">
-              <Typography>
-                Don't have an account?{" "}
+              <Divider sx={{ my: 1 }}>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  New to TaskHub?
+                </Typography>
+              </Divider>
+            </Grid>
+
+            <Grid item xs={12} width="100%">
+              <Typography sx={{ textAlign: "center", mb: 1.5 }}>
                 <Link
                   onClick={() => !loading && router("signup")}
-                  sx={{ cursor: loading ? "default" : "pointer" }}
+                  sx={{ 
+                    cursor: loading ? "default" : "pointer",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    color: "#1a73e8",
+                    "&:hover": {
+                      textDecoration: "underline",
+                    }
+                  }}
                 >
-                  Sign up
+                  Create an account
                 </Link>
               </Typography>
             </Grid>
+
             <Grid item xs={12} width="100%">
-              <Link
-                onClick={() => !loading && router("/auth/forgot-password")}
-                sx={{ cursor: loading ? "default" : "pointer", fontSize: "0.9rem" }}
-              >
-                Forgot password?
-              </Link>
+              <Typography sx={{ textAlign: "center" }}>
+                <Link
+                  onClick={() => !loading && router("/auth/forgot-password")}
+                  sx={{ 
+                    cursor: loading ? "default" : "pointer", 
+                    fontSize: "0.9rem",
+                    color: "#757575",
+                    "&:hover": {
+                      color: "#1a73e8",
+                    }
+                  }}
+                >
+                  Forgot your password?
+                </Link>
+              </Typography>
             </Grid>
           </Grid>
         </form>
@@ -138,7 +195,7 @@ function Login() {
           variant="filled"
           sx={{ width: "100%" }}
         >
-          Logged in successfully!
+          Logged in successfully! Redirecting...
         </Alert>
       </Snackbar>
       <Snackbar open={openError} autoHideDuration={6000} onClose={handleCloseError}>
